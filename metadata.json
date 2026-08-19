@@ -1,0 +1,6 @@
+{
+  "name": "Aqeel Rider",
+  "description": "Smart ledger and delivery app for motorcycle riders to track debts (Qarza), parcel deliveries (Saman), and daily rides with automated distance calculation, PDF reports, and WhatsApp sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
