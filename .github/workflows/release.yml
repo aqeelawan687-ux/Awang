@@ -24,17 +24,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant execute permission and verify Gradle wrapper
-        run: |
-          chmod +x ./gradlew
-          if ! java -jar gradle/wrapper/gradle-wrapper.jar --version >/dev/null 2>&1; then
-            echo "::warning::gradle-wrapper.jar is invalid or missing. Restoring official Gradle 9.3.1 wrapper..."
-            curl -sSL https://services.gradle.org/distributions/gradle-9.3.1-bin.zip -o /tmp/gradle-dist.zip
-            unzip -q /tmp/gradle-dist.zip -d /tmp/gradle-dist
-            /tmp/gradle-dist/gradle-9.3.1/bin/gradle wrapper --gradle-version 9.3.1
-            rm -rf /tmp/gradle-dist.zip /tmp/gradle-dist
-          fi
-          java -jar gradle/wrapper/gradle-wrapper.jar --version
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
       - name: Decode Keystore
         id: decode_keystore
