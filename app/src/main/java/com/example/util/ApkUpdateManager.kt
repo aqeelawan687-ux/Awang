@@ -68,7 +68,7 @@ object ApkUpdateManager {
 
     // GitHub repository configuration
     const val GITHUB_REPO_OWNER = "aqeelawan687-ux"
-    const val GITHUB_REPO_NAME = "Aqeel"
+    const val GITHUB_REPO_NAME = "Awang"
     const val GITHUB_RELEASE_API_URL = "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest"
     const val PERMANENT_APK_DOWNLOAD_URL = "https://github.com/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest/download/app-release.apk"
 
