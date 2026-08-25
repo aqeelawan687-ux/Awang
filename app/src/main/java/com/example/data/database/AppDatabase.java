@@ -22,7 +22,7 @@ import com.example.data.entity.RideEntity;
         RideEntity.class,
         CustomerHistoryEntity.class
     },
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -54,6 +54,21 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE parcels ADD COLUMN samanName TEXT NOT NULL DEFAULT ''");
+            database.execSQL("ALTER TABLE parcels ADD COLUMN imageUri TEXT DEFAULT NULL");
+        }
+    };
+
+    static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE customer_history ADD COLUMN imageUri TEXT DEFAULT NULL");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
@@ -63,7 +78,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         AppDatabase.class,
                         "aqeel_rider_database"
                     )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build();
                 }

@@ -39,6 +39,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +65,8 @@ import java.util.Date
 import java.util.Locale
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 
 // 1. DEBTOR CARD (LOGON KA HISAB & CUSTOMER FOLDER)
 @Composable
@@ -364,6 +370,15 @@ fun ParcelCard(
     val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.US).format(Date(parcel.createdTimestamp))
     val itemPriceText = if (isBalanceHidden) "Rs. ****" else "Rs. ${parcel.itemPrice.toInt()}"
     val deliveryChargesText = if (isBalanceHidden) "Rs. ****" else "Rs. ${parcel.deliveryCharges.toInt()}"
+    var showFullPreview by remember { mutableStateOf(false) }
+
+    if (showFullPreview && !parcel.imageUri.isNullOrBlank()) {
+        FullScreenImageViewerDialog(
+            imageUri = parcel.imageUri,
+            title = if (parcel.samanName.isNotBlank()) parcel.samanName else "Saman Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     Card(
         modifier = modifier
@@ -412,6 +427,12 @@ fun ParcelCard(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                             )
                         }
+                        Text(
+                            text = "📅 $dateStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray,
+                            fontSize = 10.sp
+                        )
                     }
                 }
 
@@ -423,13 +444,65 @@ fun ParcelCard(
                 }
             }
 
-            if (parcel.itemDetails.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Saman: ${parcel.itemDetails}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+            // Saman Name & Image Thumbnail Row
+            if (parcel.samanName.isNotBlank() || parcel.itemDetails.isNotBlank() || !parcel.imageUri.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!parcel.imageUri.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clickable { showFullPreview = true }
+                        ) {
+                            AsyncImage(
+                                model = parcel.imageUri,
+                                contentDescription = "Saman Photo",
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(enabled = !parcel.imageUri.isNullOrBlank()) {
+                                showFullPreview = true
+                            }
+                    ) {
+                        if (parcel.samanName.isNotBlank()) {
+                            Text(
+                                text = "📦 Saman: ${parcel.samanName}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (parcel.itemDetails.isNotBlank() && parcel.itemDetails != parcel.samanName) {
+                            Text(
+                                text = "Details: ${parcel.itemDetails}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                        if (!parcel.imageUri.isNullOrBlank()) {
+                            Text(
+                                text = "🔍 Tap photo to view full",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray,
+                                fontSize = 9.sp
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

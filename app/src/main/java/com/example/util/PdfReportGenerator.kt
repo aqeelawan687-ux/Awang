@@ -1,11 +1,15 @@
 package com.example.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import android.net.Uri
 import com.example.data.entity.DebtorEntity
 import com.example.data.entity.ParcelEntity
 import com.example.data.entity.PaymentHistoryEntity
@@ -175,13 +179,26 @@ object PdfReportGenerator {
                 y += 20f
             } else {
                 for (parcel in effectiveParcels.take(6)) {
-                    val info = "${parcel.shopName} -> ${parcel.recipientName}"
+                    val photoBitmap = loadThumbnailBitmap(context, parcel.imageUri, 14)
+                    val photoIndicator = if (photoBitmap != null || !parcel.imageUri.isNullOrBlank()) "📷 " else ""
+                    val samanPart = if (parcel.samanName.isNotBlank()) " [${parcel.samanName}]" else if (parcel.itemDetails.isNotBlank()) " [${parcel.itemDetails}]" else ""
+                    val info = "$photoIndicator${parcel.shopName} -> ${parcel.recipientName}$samanPart"
                     val truncatedInfo = if (info.length > 38) info.substring(0, 35) + "..." else info
                     val statusText = if (parcel.isDelivered && parcel.isPaid) "Delivered & Paid"
                     else if (parcel.isDelivered) "Delivered"
                     else "Pending"
 
-                    canvas.drawText(truncatedInfo, 30f, y, paint)
+                    if (photoBitmap != null) {
+                        try {
+                            canvas.drawBitmap(photoBitmap, 30f, y - 10f, null)
+                            canvas.drawText(truncatedInfo, 48f, y, paint)
+                        } catch (e: Exception) {
+                            canvas.drawText(truncatedInfo, 30f, y, paint)
+                        }
+                    } else {
+                        canvas.drawText(truncatedInfo, 30f, y, paint)
+                    }
+
                     val priceStr = formatItemPrice(parcel.itemPrice, hideSamanTotal)
                     val deliveryStr = formatDeliveryCharges(parcel.deliveryCharges, hideRideCharges)
                     canvas.drawText(priceStr, 280f, y, paint)
@@ -453,11 +470,23 @@ object PdfReportGenerator {
             } else {
                 for (p in effectiveParcels.take(5)) {
                     val pDate = dateFormat.format(Date(p.createdTimestamp))
-                    val details = "${p.shopName}: ${p.itemDetails}"
+                    val sName = if (p.samanName.isNotBlank()) p.samanName else p.itemDetails
+                    val photoBitmap = loadThumbnailBitmap(context, p.imageUri, 12)
+                    val photoIndicator = if (photoBitmap != null || !p.imageUri.isNullOrBlank()) "📷 " else ""
+                    val details = "$photoIndicator${p.shopName}: $sName"
                     val truncated = if (details.length > 32) details.substring(0, 29) + "..." else details
                     val totalP = p.itemPrice + p.deliveryCharges
                     canvas.drawText(pDate, 30f, y, paint)
-                    canvas.drawText(truncated, 130f, y, paint)
+                    if (photoBitmap != null) {
+                        try {
+                            canvas.drawBitmap(photoBitmap, 115f, y - 9f, null)
+                            canvas.drawText(truncated, 132f, y, paint)
+                        } catch (e: Exception) {
+                            canvas.drawText(truncated, 130f, y, paint)
+                        }
+                    } else {
+                        canvas.drawText(truncated, 130f, y, paint)
+                    }
                     val priceStr = if (hideSamanTotal) "--" else "Rs. ${p.itemPrice.toInt()}"
                     val delStr = if (hideRideCharges) "--" else "Rs. ${p.deliveryCharges.toInt()}"
                     val totalStr = if (hideSamanTotal) "--" else "Rs. ${totalP.toInt()}"
@@ -654,6 +683,25 @@ object PdfReportGenerator {
             "Status: FULL PAID ✨"
         } else {
             "Baqaya: Rs. ${baqaya.toInt()} ⚠️"
+        }
+    }
+
+    private fun loadThumbnailBitmap(context: Context, uriString: String?, maxDim: Int = 14): Bitmap? {
+        if (uriString.isNullOrBlank()) return null
+        return try {
+            val inputStream = if (uriString.startsWith("file://") || uriString.startsWith("/")) {
+                val path = if (uriString.startsWith("file://")) uriString.substring(7) else uriString
+                File(path).inputStream()
+            } else {
+                context.contentResolver.openInputStream(Uri.parse(uriString))
+            }
+            val original = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            if (original != null) {
+                Bitmap.createScaledBitmap(original, maxDim, maxDim, true)
+            } else null
+        } catch (e: Exception) {
+            null
         }
     }
 }

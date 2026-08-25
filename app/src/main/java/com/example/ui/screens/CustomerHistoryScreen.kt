@@ -44,6 +44,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +73,10 @@ import com.example.ui.theme.MintContainer
 import com.example.ui.theme.SoftRedBg
 import com.example.ui.viewmodel.RiderUiState
 import com.example.ui.viewmodel.RiderViewModel
+import com.example.ui.components.FullScreenImageViewerDialog
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material.icons.filled.ZoomIn
+import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,6 +92,19 @@ fun CustomerHistoryScreen(
     var searchQuery by remember { mutableStateOf("") }
     var historyToDelete by remember { mutableStateOf<CustomerHistoryEntity?>(null) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var previewImageUri by remember { mutableStateOf<String?>(null) }
+    var previewImageTitle by remember { mutableStateOf("") }
+
+    if (previewImageUri != null) {
+        FullScreenImageViewerDialog(
+            imageUri = previewImageUri!!,
+            title = previewImageTitle.ifBlank { "Saman Photo" },
+            onDismiss = { previewImageUri = null }
+        )
+    }
 
     val rawHistory = state.customerHistory
     val filteredHistory = if (searchQuery.isBlank()) {
@@ -103,42 +127,104 @@ fun CustomerHistoryScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "Customer History / کسٹمر ہسٹری",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "${rawHistory.size} Records Saved",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (isSelectionMode) {
+                            Text(
+                                text = "Selected (${selectedIds.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Select items to delete",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Customer History / کسٹمر ہسٹری",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${rawHistory.size} Records Saved",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = onBackClick,
+                        onClick = {
+                            if (isSelectionMode) {
+                                isSelectionMode = false
+                                selectedIds = emptySet()
+                            } else {
+                                onBackClick()
+                            }
+                        },
                         modifier = Modifier.testTag("btn_back_history")
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            imageVector = if (isSelectionMode) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isSelectionMode) "Cancel Selection" else "Back",
                             tint = EmeraldGreenPrimary
                         )
                     }
                 },
                 actions = {
                     if (rawHistory.isNotEmpty()) {
-                        IconButton(
-                            onClick = { showDeleteAllDialog = true },
-                            modifier = Modifier.testTag("btn_delete_all_history")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DeleteSweep,
-                                contentDescription = "Delete All History",
-                                tint = AccentRed
-                            )
+                        if (isSelectionMode) {
+                            IconButton(
+                                onClick = {
+                                    if (selectedIds.size == filteredHistory.size) {
+                                        selectedIds = emptySet()
+                                    } else {
+                                        selectedIds = filteredHistory.map { it.id }.toSet()
+                                    }
+                                },
+                                modifier = Modifier.testTag("btn_select_all")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SelectAll,
+                                    contentDescription = "Select All",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (selectedIds.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { showDeleteSelectedDialog = true },
+                                    modifier = Modifier.testTag("btn_delete_selected_history")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete Selected",
+                                        tint = AccentRed
+                                    )
+                                }
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { isSelectionMode = true },
+                                modifier = Modifier.testTag("btn_enter_selection_mode")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Checklist,
+                                    contentDescription = "Select Multiple",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            IconButton(
+                                onClick = { showDeleteAllDialog = true },
+                                modifier = Modifier.testTag("btn_delete_all_history")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteSweep,
+                                    contentDescription = "Delete All History",
+                                    tint = AccentRed
+                                )
+                            }
                         }
                     }
                 },
@@ -176,7 +262,7 @@ fun CustomerHistoryScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            // Top Header / Delete All Action Banner
+            // Top Header / Delete Actions Banner
             if (rawHistory.isNotEmpty()) {
                 Row(
                     modifier = Modifier
@@ -186,24 +272,44 @@ fun CustomerHistoryScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Recent Activity (${filteredHistory.size})",
+                        text = if (isSelectionMode) "Select records to remove" else "Recent Activity (${filteredHistory.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    TextButton(
-                        onClick = { showDeleteAllDialog = true },
-                        colors = ButtonDefaults.textButtonColors(contentColor = AccentRed),
-                        modifier = Modifier.testTag("btn_delete_all_text")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Delete All (سب ختم کریں)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row {
+                        if (isSelectionMode) {
+                            if (selectedIds.isNotEmpty()) {
+                                TextButton(
+                                    onClick = { showDeleteSelectedDialog = true },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = AccentRed),
+                                    modifier = Modifier.testTag("btn_delete_selected_text")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Delete (${selectedIds.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        } else {
+                            TextButton(
+                                onClick = { showDeleteAllDialog = true },
+                                colors = ButtonDefaults.textButtonColors(contentColor = AccentRed),
+                                modifier = Modifier.testTag("btn_delete_all_text")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteSweep,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Delete All (سب ختم کریں)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -256,9 +362,23 @@ fun CustomerHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredHistory, key = { it.id }) { item ->
+                        val isSelected = selectedIds.contains(item.id)
                         CustomerHistoryItemCard(
                             item = item,
                             dateStr = dateFormat.format(Date(item.timestamp)),
+                            isSelectionMode = isSelectionMode,
+                            isSelected = isSelected,
+                            onToggleSelect = {
+                                selectedIds = if (isSelected) {
+                                    selectedIds - item.id
+                                } else {
+                                    selectedIds + item.id
+                                }
+                            },
+                            onImageClick = { uri, title ->
+                                previewImageUri = uri
+                                previewImageTitle = title
+                            },
                             onDelete = { historyToDelete = item }
                         )
                     }
@@ -348,6 +468,57 @@ fun CustomerHistoryScreen(
         )
     }
 
+    // Confirmation Dialog for Batch / Multiple Selected History Delete
+    if (showDeleteSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteSelectedDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = AccentRed
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete ${selectedIds.size} Selected Records?",
+                        fontWeight = FontWeight.Bold,
+                        color = AccentRed,
+                        fontSize = 17.sp
+                    )
+                }
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete ${selectedIds.size} selected customer history records?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteCustomerHistoryBatch(selectedIds.toList())
+                        showDeleteSelectedDialog = false
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    modifier = Modifier.testTag("btn_confirm_delete_selected_history")
+                ) {
+                    Text("Delete Selected / منتخب شدہ حذف کریں", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteSelectedDialog = false },
+                    modifier = Modifier.testTag("btn_cancel_delete_selected_history")
+                ) {
+                    Text("Cancel / منسوخ")
+                }
+            }
+        )
+    }
+
     // Confirmation Dialog for Delete All History
     if (showDeleteAllDialog) {
         AlertDialog(
@@ -402,6 +573,10 @@ fun CustomerHistoryScreen(
 fun CustomerHistoryItemCard(
     item: CustomerHistoryEntity,
     dateStr: String,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelect: () -> Unit = {},
+    onImageClick: (String, String) -> Unit = { _, _ -> },
     onDelete: () -> Unit
 ) {
     val icon = when (item.actionType.lowercase(Locale.getDefault())) {
@@ -421,10 +596,15 @@ fun CustomerHistoryItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable {
+                if (isSelectionMode) {
+                    onToggleSelect()
+                }
+            }
             .testTag("card_history_${item.id}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -434,6 +614,15 @@ fun CustomerHistoryItemCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() },
+                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+
             // Action Icon badge
             Box(
                 modifier = Modifier
@@ -516,6 +705,63 @@ fun CustomerHistoryItemCard(
                     )
                 }
 
+                // Saman Image Thumbnail in History
+                if (!item.imageUri.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .clickable {
+                                if (!isSelectionMode) {
+                                    onImageClick(item.imageUri, item.title)
+                                }
+                            }
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box {
+                            AsyncImage(
+                                model = item.imageUri,
+                                contentDescription = "Saman Photo",
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .align(Alignment.BottomEnd),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ZoomIn,
+                                    contentDescription = "Zoom",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "📷 Saman Photo Attached",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldGreenPrimary
+                            )
+                            Text(
+                                text = "Tap to view full / دیکھنے کیلئے ٹیپ کریں",
+                                fontSize = 9.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -541,20 +787,22 @@ fun CustomerHistoryItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
+            if (!isSelectionMode) {
+                Spacer(modifier = Modifier.width(4.dp))
 
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .size(36.dp)
-                    .testTag("btn_delete_history_${item.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Item",
-                    tint = AccentRed.copy(alpha = 0.8f),
-                    modifier = Modifier.size(18.dp)
-                )
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("btn_delete_history_${item.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Item",
+                        tint = AccentRed.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

@@ -10,11 +10,13 @@ data class ParcelEntity(
     val shopName: String,
     val recipientName: String,
     val recipientAddress: String,
+    val samanName: String = "",
     val itemDetails: String,
     val itemPrice: Double,
     val deliveryCharges: Double,
     val isDelivered: Boolean = false,
     val isPaid: Boolean = false,
     val createdTimestamp: Long = System.currentTimeMillis(),
-    val deliveredTimestamp: Long? = null
+    val deliveredTimestamp: Long? = null,
+    val imageUri: String? = null
 )

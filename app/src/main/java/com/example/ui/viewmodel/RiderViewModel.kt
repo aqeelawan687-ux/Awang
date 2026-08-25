@@ -42,7 +42,7 @@ data class RiderUiState(
     val isMahineKiEarning: Double = 0.0,
     val todayRidesTotal: Double = 0.0,
     val thisMonthRidesTotal: Double = 0.0,
-    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val themeMode: AppThemeMode = AppThemeMode.BLUE,
     val isDarkMode: Boolean = false,
     val isBalanceHidden: Boolean = false,
     val selectedReportDateMillis: Long = System.currentTimeMillis()
@@ -64,11 +64,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchQueryDebts = MutableStateFlow("")
     private val _searchQueryParcels = MutableStateFlow("")
     private val _themeMode = MutableStateFlow(
-        try {
-            AppThemeMode.valueOf(prefs.getString("app_theme_mode", AppThemeMode.SYSTEM.name) ?: AppThemeMode.SYSTEM.name)
-        } catch (_: Exception) {
-            AppThemeMode.SYSTEM
-        }
+        AppThemeMode.fromNameOrDefault(prefs.getString("app_theme_mode", AppThemeMode.BLUE.name))
     )
     private val _isDarkMode = MutableStateFlow(false)
     private val _isBalanceHidden = MutableStateFlow(prefs.getBoolean("hide_balance", false))
@@ -162,7 +158,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             parcels.filter {
                 it.recipientName.lowercase().contains(q) ||
                 it.shopName.lowercase().contains(q) ||
-                it.recipientAddress.lowercase().contains(q)
+                it.recipientAddress.lowercase().contains(q) ||
+                it.samanName.lowercase().contains(q) ||
+                it.itemDetails.lowercase().contains(q)
             }
         }
 
@@ -240,8 +238,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleDarkMode() {
         val currentMode = _themeMode.value
-        val newMode = if (currentMode == AppThemeMode.DARK) AppThemeMode.LIGHT else AppThemeMode.DARK
-        setThemeMode(newMode)
+        val entries = AppThemeMode.entries
+        val nextIndex = (entries.indexOf(currentMode) + 1) % entries.size
+        setThemeMode(entries[nextIndex])
     }
 
     fun toggleBalanceVisibility() {
@@ -330,19 +329,24 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         recipientAddress: String,
         itemDetails: String,
         itemPrice: Double,
-        deliveryCharges: Double
+        deliveryCharges: Double,
+        samanName: String = "",
+        imageUri: String? = null
     ) {
         viewModelScope.launch {
             val trimmedRecipient = recipientName.trim()
             val totalParcelCharges = itemPrice + deliveryCharges
+            val effectiveSamanName = if (samanName.isNotBlank()) samanName.trim() else itemDetails.trim()
 
             val parcel = ParcelEntity(
                 shopName = shopName.trim(),
                 recipientName = trimmedRecipient,
                 recipientAddress = recipientAddress.trim(),
+                samanName = effectiveSamanName,
                 itemDetails = itemDetails.trim(),
                 itemPrice = itemPrice,
-                deliveryCharges = deliveryCharges
+                deliveryCharges = deliveryCharges,
+                imageUri = imageUri
             )
             repository.addParcel(parcel)
 
@@ -353,7 +357,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     val updated = existingDebtor.copy(
                         totalDebt = existingDebtor.totalDebt + totalParcelCharges,
                         lastUpdatedTimestamp = System.currentTimeMillis(),
-                        note = if (existingDebtor.note.isBlank()) "Parcel: $itemDetails" else "${existingDebtor.note} | Saman: $itemDetails"
+                        note = if (existingDebtor.note.isBlank()) "Parcel: $effectiveSamanName" else "${existingDebtor.note} | Saman: $effectiveSamanName"
                     )
                     repository.updateDebtor(updated)
                 } else if (totalParcelCharges > 0) {
@@ -361,7 +365,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                         name = trimmedRecipient,
                         phoneNumber = "",
                         totalDebt = totalParcelCharges,
-                        note = "Saman: $itemDetails ($shopName)",
+                        note = "Saman: $effectiveSamanName ($shopName)",
                         createdTimestamp = System.currentTimeMillis(),
                         lastUpdatedTimestamp = System.currentTimeMillis()
                     )
@@ -372,9 +376,10 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     customerName = trimmedRecipient,
                     phoneNumber = "",
                     actionType = "Parcel",
-                    title = "Parcel Booked: $itemDetails",
+                    title = "Parcel Booked: $effectiveSamanName",
                     details = "Shop: $shopName | Address: $recipientAddress | Price: Rs. ${itemPrice.toInt()} + Del: Rs. ${deliveryCharges.toInt()}",
-                    amount = totalParcelCharges
+                    amount = totalParcelCharges,
+                    imageUri = imageUri
                 )
             }
         }
@@ -388,13 +393,15 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.updateParcel(updated)
             if (parcel.recipientName.isNotBlank()) {
+                val sName = if (parcel.samanName.isNotBlank()) parcel.samanName else parcel.itemDetails
                 repository.addCustomerHistory(
                     customerName = parcel.recipientName,
                     phoneNumber = "",
                     actionType = "Parcel",
-                    title = if (updated.isDelivered) "Parcel Delivered: ${parcel.itemDetails}" else "Parcel Delivery Pending",
+                    title = if (updated.isDelivered) "Parcel Delivered: $sName" else "Parcel Delivery Pending",
                     details = "Shop: ${parcel.shopName} | Destination: ${parcel.recipientAddress}",
-                    amount = parcel.itemPrice + parcel.deliveryCharges
+                    amount = parcel.itemPrice + parcel.deliveryCharges,
+                    imageUri = parcel.imageUri
                 )
             }
         }
@@ -437,7 +444,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     actionType = "Parcel",
                     title = if (willBePaid) "Parcel Payment Cleared (Rs. ${totalParcelCharges.toInt()})" else "Parcel Payment Pending",
                     details = "Item: ${parcel.itemDetails} | Shop: ${parcel.shopName}",
-                    amount = totalParcelCharges
+                    amount = totalParcelCharges,
+                    imageUri = parcel.imageUri
                 )
             }
         }
@@ -636,17 +644,22 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         recipientAddress: String,
         itemDetails: String,
         itemPrice: Double,
-        deliveryCharges: Double
+        deliveryCharges: Double,
+        samanName: String = "",
+        imageUri: String? = null
     ) {
         viewModelScope.launch {
+            val effectiveSamanName = if (samanName.isNotBlank()) samanName.trim() else itemDetails.trim()
             val parcel = ParcelEntity(
                 debtorId = debtor.id,
                 shopName = shopName.trim().ifBlank { "Dukan" },
                 recipientName = debtor.name,
                 recipientAddress = recipientAddress.trim(),
+                samanName = effectiveSamanName,
                 itemDetails = itemDetails.trim(),
                 itemPrice = itemPrice,
-                deliveryCharges = deliveryCharges
+                deliveryCharges = deliveryCharges,
+                imageUri = imageUri
             )
             repository.addParcel(parcel)
 
@@ -655,9 +668,10 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                 customerName = debtor.name,
                 phoneNumber = debtor.phoneNumber,
                 actionType = "Parcel",
-                title = "Parcel: $itemDetails",
+                title = "Parcel: $effectiveSamanName",
                 details = "Shop: $shopName | Price: Rs. ${itemPrice.toInt()} + Del: Rs. ${deliveryCharges.toInt()}",
-                amount = total
+                amount = total,
+                imageUri = imageUri
             )
         }
     }
@@ -678,6 +692,12 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteCustomerHistoryById(id: Long) {
         viewModelScope.launch {
             repository.deleteCustomerHistoryById(id)
+        }
+    }
+
+    fun deleteCustomerHistoryBatch(ids: List<Long>) {
+        viewModelScope.launch {
+            repository.deleteCustomerHistoryByIds(ids)
         }
     }
 

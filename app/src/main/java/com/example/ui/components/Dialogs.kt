@@ -52,6 +52,22 @@ import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.layout.ContentScale
+import android.graphics.Bitmap
+import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
+import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.AlertDialog
@@ -336,16 +352,55 @@ fun AddParcelDialog(
         recipientAddress: String,
         itemDetails: String,
         itemPrice: Double,
-        deliveryCharges: Double
+        deliveryCharges: Double,
+        samanName: String,
+        imageUri: String?
     ) -> Unit
 ) {
     var shopName by remember { mutableStateOf("") }
+    var samanName by remember { mutableStateOf("") }
     var recipientName by remember { mutableStateOf("") }
     var recipientAddress by remember { mutableStateOf("") }
     var itemDetails by remember { mutableStateOf("") }
     var itemPriceText by remember { mutableStateOf("") }
     var deliveryChargesText by remember { mutableStateOf("150") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    var showFullPreview by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            try {
+                val photoFile = File(context.filesDir, "saman_cam_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(photoFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                selectedImageUri = Uri.fromFile(photoFile).toString()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri.toString()
+        }
+    }
+
+    if (showFullPreview && selectedImageUri != null) {
+        FullScreenImageViewerDialog(
+            imageUri = selectedImageUri!!,
+            title = if (samanName.isNotBlank()) samanName else "Saman Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -356,6 +411,7 @@ fun AddParcelDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 Row(
@@ -375,6 +431,17 @@ fun AddParcelDialog(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = samanName,
+                    onValueChange = { samanName = it },
+                    label = { Text("Saman ka Naam / سامان کا نام") },
+                    leadingIcon = { Icon(Icons.Default.ShoppingBag, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = shopName,
@@ -439,6 +506,144 @@ fun AddParcelDialog(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Image Selection Section (Camera / Scan + Gallery Upload)
+                Text(
+                    text = "Saman ki Tasweer / سامان کی تصویر",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (selectedImageUri != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable { showFullPreview = true }
+                                    .padding(4.dp)
+                            ) {
+                                Box {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "Saman Photo Preview",
+                                        modifier = Modifier
+                                            .size(65.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                                            .align(Alignment.BottomEnd),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ZoomIn,
+                                            contentDescription = "Zoom",
+                                            tint = androidx.compose.ui.graphics.Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("Photo Added ✓", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = EmeraldGreenPrimary)
+                                    Text("Tap to view full / دیکھنے کیلئے ٹیپ کریں", fontSize = 10.sp, color = androidx.compose.ui.graphics.Color.Gray)
+                                }
+                            }
+
+                            Row {
+                                IconButton(
+                                    onClick = { cameraLauncher.launch(null) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Retake Camera",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { photoPickerLauncher.launch("image/*") },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoLibrary,
+                                        contentDescription = "Change Photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove photo",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { cameraLauncher.launch(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Camera / Scan",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📷 Camera / Scan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = "Attach / Gallery",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📎 Attach Photo", fontSize = 11.sp)
+                        }
+                    }
+                }
+
                 if (isError) {
                     Text(
                         text = "Meherbani karke customer ka naam aur charges darj karein",
@@ -469,7 +674,9 @@ fun AddParcelDialog(
                                     recipientAddress,
                                     itemDetails,
                                     price,
-                                    delivery
+                                    delivery,
+                                    samanName,
+                                    selectedImageUri
                                 )
                             } else {
                                 isError = true
@@ -1474,15 +1681,52 @@ fun EditRideDialog(
 fun EditParcelDialog(
     parcel: com.example.data.entity.ParcelEntity,
     onDismiss: () -> Unit,
-    onConfirm: (shopName: String, recipientName: String, recipientAddress: String, itemDetails: String, itemPrice: Double, deliveryCharges: Double) -> Unit
+    onConfirm: (shopName: String, recipientName: String, recipientAddress: String, itemDetails: String, itemPrice: Double, deliveryCharges: Double, samanName: String, imageUri: String?) -> Unit
 ) {
     var shopName by remember { mutableStateOf(parcel.shopName) }
+    var samanName by remember { mutableStateOf(parcel.samanName) }
     var recipientName by remember { mutableStateOf(parcel.recipientName) }
     var recipientAddress by remember { mutableStateOf(parcel.recipientAddress) }
     var itemDetails by remember { mutableStateOf(parcel.itemDetails) }
     var itemPriceText by remember { mutableStateOf(parcel.itemPrice.toInt().toString()) }
     var deliveryChargesText by remember { mutableStateOf(parcel.deliveryCharges.toInt().toString()) }
+    var selectedImageUri by remember { mutableStateOf<String?>(parcel.imageUri) }
+    var showFullPreview by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            try {
+                val photoFile = File(context.filesDir, "saman_cam_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(photoFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                selectedImageUri = Uri.fromFile(photoFile).toString()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri.toString()
+        }
+    }
+
+    if (showFullPreview && selectedImageUri != null) {
+        FullScreenImageViewerDialog(
+            imageUri = selectedImageUri!!,
+            title = if (samanName.isNotBlank()) samanName else "Saman Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1494,7 +1738,18 @@ fun EditParcelDialog(
             )
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = samanName,
+                    onValueChange = { samanName = it },
+                    label = { Text("Saman ka Naam / سامان کا نام") },
+                    leadingIcon = { Icon(Icons.Default.ShoppingBag, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = shopName,
                     onValueChange = { shopName = it },
@@ -1511,6 +1766,17 @@ fun EditParcelDialog(
                     onValueChange = { recipientName = it; isError = false },
                     label = { Text("Customer Name / کسٹمر کا نام") },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = recipientAddress,
+                    onValueChange = { recipientAddress = it },
+                    label = { Text("Delivery Address / پتہ") },
+                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -1546,6 +1812,144 @@ fun EditParcelDialog(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Image Section
+                Text(
+                    text = "Saman Photo / تصویر",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (selectedImageUri != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable { showFullPreview = true }
+                                    .padding(4.dp)
+                            ) {
+                                Box {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "Saman Photo Preview",
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                                            .align(Alignment.BottomEnd),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ZoomIn,
+                                            contentDescription = "Zoom",
+                                            tint = androidx.compose.ui.graphics.Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("Photo Added ✓", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = EmeraldGreenPrimary)
+                                    Text("Tap to view full", fontSize = 10.sp, color = androidx.compose.ui.graphics.Color.Gray)
+                                }
+                            }
+
+                            Row {
+                                IconButton(
+                                    onClick = { cameraLauncher.launch(null) },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Retake Photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { photoPickerLauncher.launch("image/*") },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoLibrary,
+                                        contentDescription = "Change Photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove photo",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { cameraLauncher.launch(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Camera / Scan",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("📷 Camera", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = "Attach / Gallery",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("📎 Gallery", fontSize = 11.sp)
+                        }
+                    }
+                }
+
                 if (isError) {
                     Text(
                         text = "Customer Name zaroor likhein",
@@ -1562,7 +1966,7 @@ fun EditParcelDialog(
                     val price = itemPriceText.toDoubleOrNull() ?: 0.0
                     val delivery = deliveryChargesText.toDoubleOrNull() ?: 0.0
                     if (recipientName.isNotBlank()) {
-                        onConfirm(shopName, recipientName, recipientAddress, itemDetails, price, delivery)
+                        onConfirm(shopName, recipientName, recipientAddress, itemDetails, price, delivery, samanName, selectedImageUri)
                     } else {
                         isError = true
                     }
@@ -2095,5 +2499,64 @@ fun CustomerPdfFilterDialog(
             }
         }
     )
+}
+
+// 12. FULL SCREEN IMAGE VIEWER DIALOG
+@Composable
+fun FullScreenImageViewerDialog(
+    imageUri: String,
+    title: String = "Saman Photo",
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(androidx.compose.ui.graphics.Color.Black),
+            color = androidx.compose.ui.graphics.Color.Black
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = title,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                // Top bar with close button & title
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .align(Alignment.TopCenter),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        color = androidx.compose.ui.graphics.Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Fullscreen",
+                            tint = androidx.compose.ui.graphics.Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 

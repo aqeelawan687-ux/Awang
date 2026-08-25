@@ -94,7 +94,8 @@ class RiderRepository(private val dao: RiderDao) {
         actionType: String,
         title: String,
         details: String,
-        amount: Double = 0.0
+        amount: Double = 0.0,
+        imageUri: String? = null
     ): Long {
         val entry = com.example.data.entity.CustomerHistoryEntity(
             customerName = customerName.trim(),
@@ -103,7 +104,8 @@ class RiderRepository(private val dao: RiderDao) {
             title = title.trim(),
             details = details.trim(),
             amount = amount,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            imageUri = imageUri
         )
         return dao.insertCustomerHistory(entry)
     }
@@ -114,6 +116,12 @@ class RiderRepository(private val dao: RiderDao) {
 
     suspend fun deleteCustomerHistoryById(id: Long) {
         dao.deleteCustomerHistoryById(id)
+    }
+
+    suspend fun deleteCustomerHistoryByIds(ids: List<Long>) {
+        if (ids.isNotEmpty()) {
+            dao.deleteCustomerHistoryByIds(ids)
+        }
     }
 
     suspend fun deleteAllCustomerHistory() {

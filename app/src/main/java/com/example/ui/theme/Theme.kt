@@ -1,49 +1,192 @@
 package com.example.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Emerald80,
-    secondary = EmeraldGreen70,
-    tertiary = MintContainer,
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceContainer = DarkCardBg,
-    onPrimary = Color.Black,
-    onSecondary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White
-)
+private fun getThemeColorScheme(themeMode: AppThemeMode, isDark: Boolean): ColorScheme {
+    return when (themeMode) {
+        AppThemeMode.BLUE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF38BDF8),
+                secondary = Color(0xFF60A5FA),
+                tertiary = Color(0xFF93C5FD),
+                background = BlueDarkSurface,
+                surface = Color(0xFF0F172A),
+                surfaceContainer = BlueDarkCard,
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = BluePrimary,
+                secondary = BlueSecondary,
+                tertiary = AccentAmber,
+                background = BlueLightBg,
+                surface = Color.White,
+                surfaceContainer = BlueContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF0F172A),
+                onSurface = Color(0xFF0F172A)
+            )
+        }
 
-private val LightColorScheme = lightColorScheme(
-    primary = EmeraldGreenPrimary,
-    secondary = EmeraldGreen70,
-    tertiary = AccentAmber,
-    background = MintLightBg,
-    surface = Color.White,
-    surfaceContainer = MintContainer,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onBackground = Color(0xFF0F172A),
-    onSurface = Color(0xFF0F172A)
-)
+        AppThemeMode.GREEN -> if (isDark) {
+            darkColorScheme(
+                primary = Emerald80,
+                secondary = EmeraldGreen70,
+                tertiary = MintContainer,
+                background = DarkBackground,
+                surface = DarkSurface,
+                surfaceContainer = DarkCardBg,
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = GreenPrimary,
+                secondary = GreenSecondary,
+                tertiary = AccentAmber,
+                background = GreenLightBg,
+                surface = Color.White,
+                surfaceContainer = GreenContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF0F172A),
+                onSurface = Color(0xFF0F172A)
+            )
+        }
+
+        AppThemeMode.PURPLE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFC084FC),
+                secondary = Color(0xFFA855F7),
+                tertiary = Color(0xFFE9D5FF),
+                background = Color(0xFF1E1035),
+                surface = Color(0xFF281845),
+                surfaceContainer = Color(0xFF38225C),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = PurplePrimary,
+                secondary = PurpleSecondary,
+                tertiary = AccentAmber,
+                background = PurpleLightBg,
+                surface = Color.White,
+                surfaceContainer = PurpleContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF1E1035),
+                onSurface = Color(0xFF1E1035)
+            )
+        }
+
+        AppThemeMode.ORANGE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFB923C),
+                secondary = Color(0xFFF97316),
+                tertiary = Color(0xFFFED7AA),
+                background = Color(0xFF291508),
+                surface = Color(0xFF3B1E0C),
+                surfaceContainer = Color(0xFF4D2912),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = OrangePrimary,
+                secondary = OrangeSecondary,
+                tertiary = AccentAmber,
+                background = OrangeLightBg,
+                surface = Color.White,
+                surfaceContainer = OrangeContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF291508),
+                onSurface = Color(0xFF291508)
+            )
+        }
+
+        AppThemeMode.RED -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFF87171),
+                secondary = Color(0xFFEF4444),
+                tertiary = Color(0xFFFECACA),
+                background = Color(0xFF2A0D0D),
+                surface = Color(0xFF3D1414),
+                surfaceContainer = Color(0xFF501C1C),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = RedPrimary,
+                secondary = RedSecondary,
+                tertiary = AccentAmber,
+                background = RedLightBg,
+                surface = Color.White,
+                surfaceContainer = RedContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF2A0D0D),
+                onSurface = Color(0xFF2A0D0D)
+            )
+        }
+
+        AppThemeMode.TEAL -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF2DD4BF),
+                secondary = Color(0xFF14B8A6),
+                tertiary = Color(0xFF99F6E4),
+                background = Color(0xFF042F2E),
+                surface = Color(0xFF0A3E3D),
+                surfaceContainer = Color(0xFF114F4E),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = TealPrimary,
+                secondary = TealSecondary,
+                tertiary = AccentAmber,
+                background = TealLightBg,
+                surface = Color.White,
+                surfaceContainer = TealContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF042F2E),
+                onSurface = Color(0xFF042F2E)
+            )
+        }
+    }
+}
 
 @Composable
 fun AqeelRiderTheme(
-    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
-    darkTheme: Boolean = when (themeMode) {
-        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
-        AppThemeMode.LIGHT -> false
-        AppThemeMode.DARK -> true
-    },
+    themeMode: AppThemeMode = AppThemeMode.BLUE,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = getThemeColorScheme(themeMode, darkTheme)
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -60,3 +203,4 @@ fun MyApplicationTheme(
 ) {
     AqeelRiderTheme(darkTheme = darkTheme, content = content)
 }
+

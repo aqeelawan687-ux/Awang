@@ -92,6 +92,9 @@ interface RiderDao {
     @Query("DELETE FROM customer_history WHERE id = :id")
     suspend fun deleteCustomerHistoryById(id: Long)
 
+    @Query("DELETE FROM customer_history WHERE id IN (:ids)")
+    suspend fun deleteCustomerHistoryByIds(ids: List<Long>)
+
     @Query("DELETE FROM customer_history")
     suspend fun deleteAllCustomerHistory()
 }

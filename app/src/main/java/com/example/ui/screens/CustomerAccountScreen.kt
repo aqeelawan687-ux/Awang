@@ -738,14 +738,16 @@ fun CustomerAccountScreen(
     if (showAddParcelDialog) {
         AddParcelDialog(
             onDismiss = { showAddParcelDialog = false },
-            onConfirm = { shop, recipient, address, details, price, delivery ->
+            onConfirm = { shop, recipient, address, details, price, delivery, samanName, imageUri ->
                 viewModel.addParcelForDebtor(
                     debtor = debtor,
                     shopName = shop,
                     recipientAddress = address,
                     itemDetails = details,
                     itemPrice = price,
-                    deliveryCharges = delivery
+                    deliveryCharges = delivery,
+                    samanName = samanName,
+                    imageUri = imageUri
                 )
                 showAddParcelDialog = false
             }
@@ -840,8 +842,19 @@ fun CustomerAccountScreen(
         EditParcelDialog(
             parcel = parcel,
             onDismiss = { selectedParcelToEdit = null },
-            onConfirm = { shop, recipient, address, details, price, delivery ->
-                viewModel.updateParcel(parcel.copy(shopName = shop, recipientName = recipient, recipientAddress = address, itemDetails = details, itemPrice = price, deliveryCharges = delivery))
+            onConfirm = { shop, recipient, address, details, price, delivery, samanName, imageUri ->
+                viewModel.updateParcel(
+                    parcel.copy(
+                        shopName = shop,
+                        recipientName = recipient,
+                        recipientAddress = address,
+                        itemDetails = details,
+                        itemPrice = price,
+                        deliveryCharges = delivery,
+                        samanName = samanName,
+                        imageUri = imageUri
+                    )
+                )
                 selectedParcelToEdit = null
             }
         )

@@ -12,5 +12,6 @@ data class CustomerHistoryEntity(
     val title: String,
     val details: String,
     val amount: Double = 0.0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val imageUri: String? = null
 )

@@ -204,8 +204,8 @@ fun RiderApp(viewModel: RiderViewModel) {
     if (showAddParcelDialog) {
         AddParcelDialog(
             onDismiss = { showAddParcelDialog = false },
-            onConfirm = { shop, recipient, address, details, price, delivery ->
-                viewModel.addParcel(shop, recipient, address, details, price, delivery)
+            onConfirm = { shop, recipient, address, details, price, delivery, samanName, imageUri ->
+                viewModel.addParcel(shop, recipient, address, details, price, delivery, samanName, imageUri)
                 showAddParcelDialog = false
             }
         )
