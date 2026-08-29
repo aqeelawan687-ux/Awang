@@ -291,7 +291,8 @@ object PdfReportGenerator {
         hideSamanTotal: Boolean = false,
         hideRideCharges: Boolean = false,
         customCustomerName: String = debtor.name,
-        customPhoneNumber: String = debtor.phoneNumber
+        customPhoneNumber: String = debtor.phoneNumber,
+        isPdfTotalOnly: Boolean = false
     ): File {
         val pdfDocument = PdfDocument()
 
@@ -338,15 +339,22 @@ object PdfReportGenerator {
         val effectiveParcels = if (includeSaman) parcels else emptyList()
         val effectivePayments = if (includePaymentHistory) payments else emptyList()
 
-        // Calculation Totals
+        // Calculation Totals - Uses the authoritative formula (Remaining Balance = Total Amount - Total Paid)
         val rideTotal = effectiveRides.sumOf { it.fareAmount }
         val samanTotal = effectiveParcels.sumOf { it.itemPrice + it.deliveryCharges }
         val totalPaid = effectivePayments.sumOf { it.amountPaid }
-        val grandTotal = if (includeRide || includeSaman) (rideTotal + samanTotal) else debtor.totalDebt
+        val grandTotal = if (effectiveRides.isNotEmpty() || effectiveParcels.isNotEmpty()) {
+            rideTotal + samanTotal
+        } else {
+            debtor.totalDebt + totalPaid
+        }
         val baqaya = (grandTotal - totalPaid).coerceAtLeast(0.0)
 
+        val effectiveHideSaman = hideSamanTotal || isPdfTotalOnly
+        val effectiveHideRide = hideRideCharges || isPdfTotalOnly
+
         // Summary Box
-        val summaryBoxHeight = 110f
+        val summaryBoxHeight = if (isPdfTotalOnly) 95f else 115f
         paint.color = lightGreenBg
         canvas.drawRoundRect(25f, y, 570f, y + summaryBoxHeight, 10f, 10f, paint)
 
@@ -359,23 +367,28 @@ object PdfReportGenerator {
         paint.textSize = 10f
         paint.typeface = Typeface.DEFAULT
 
-        val line1 = "Ride Payment: ${if (hideRideCharges) "--" else "Rs. ${rideTotal.toInt()}"}    |    Saman/Parcel Payment: ${if (hideSamanTotal) "--" else "Rs. ${samanTotal.toInt()}"}"
-        canvas.drawText(line1, 40f, y + 44f, paint)
+        var currentSummaryY = y + 42f
+        if (!isPdfTotalOnly) {
+            val line1 = "Ride Total: ${if (effectiveHideRide) "--" else "Rs. ${rideTotal.toInt()}"}    |    Saman/Parcel Total: ${if (effectiveHideSaman) "--" else "Rs. ${samanTotal.toInt()}"}"
+            canvas.drawText(line1, 40f, currentSummaryY, paint)
+            currentSummaryY += 20f
+        }
 
-        val line2 = "Grand Total: ${if (hideRideCharges && hideSamanTotal) "--" else "Rs. ${grandTotal.toInt()}"}    |    Total Paid: Rs. ${totalPaid.toInt()}"
-        canvas.drawText(line2, 40f, y + 66f, paint)
+        paint.typeface = Typeface.DEFAULT_BOLD
+        paint.textSize = 11f
+        val line2 = "TOTAL AMOUNT: Rs. ${grandTotal.toInt()}    |    PAID: Rs. ${totalPaid.toInt()}"
+        canvas.drawText(line2, 40f, currentSummaryY, paint)
+        currentSummaryY += 24f
 
         paint.color = if (baqaya <= 0) primaryGreen else accentRed
         paint.typeface = Typeface.DEFAULT_BOLD
-        paint.textSize = 11f
-        val line3 = if (hideRideCharges && hideSamanTotal) {
-            "Total Bakaya: [Hidden]"
-        } else if (baqaya <= 0) {
-            "Total Bakaya: Rs. 0  (✨ FULL PAID / تمام ادا)"
+        paint.textSize = 11.5f
+        val line3 = if (baqaya <= 0) {
+            "REMAINING BALANCE: Rs. 0  (✨ FULL PAID / تمام ادا)"
         } else {
-            "Total Bakaya: Rs. ${baqaya.toInt()}  (⚠️ PENDING / بقایا واجب الادا)"
+            "REMAINING BALANCE: Rs. ${baqaya.toInt()}  (⚠️ PENDING / بقایا واجب الادا)"
         }
-        canvas.drawText(line3, 40f, y + 90f, paint)
+        canvas.drawText(line3, 40f, currentSummaryY, paint)
 
         y += summaryBoxHeight + 20f
 
@@ -399,7 +412,7 @@ object PdfReportGenerator {
             canvas.drawText("Date & Time", 30f, y, paint)
             canvas.drawText("Route (From -> To)", 150f, y, paint)
             canvas.drawText("KM", 420f, y, paint)
-            canvas.drawText(if (hideRideCharges) "Fare (Rs) [Hidden]" else "Fare (Rs)", 480f, y, paint)
+            canvas.drawText(if (effectiveHideRide) "Fare (Rs) [Hidden]" else "Fare (Rs)", 480f, y, paint)
             y += 8f
             canvas.drawLine(30f, y, 565f, y, linePaint)
             y += 15f
@@ -416,7 +429,7 @@ object PdfReportGenerator {
                     canvas.drawText("$rideDate ${ride.timeString}", 30f, y, paint)
                     canvas.drawText(truncatedRoute, 150f, y, paint)
                     canvas.drawText("${ride.distanceKm} KM", 420f, y, paint)
-                    val fareStr = if (hideRideCharges) "--" else "Rs. ${ride.fareAmount.toInt()}"
+                    val fareStr = if (effectiveHideRide) "--" else "Rs. ${ride.fareAmount.toInt()}"
                     canvas.drawText(fareStr, 480f, y, paint)
                     y += 16f
                 }
@@ -437,9 +450,9 @@ object PdfReportGenerator {
             paint.typeface = Typeface.DEFAULT_BOLD
             canvas.drawText("Date", 30f, y, paint)
             canvas.drawText("Dukan / Details", 130f, y, paint)
-            canvas.drawText(if (hideSamanTotal) "Item Price [Hidden]" else "Item Price", 360f, y, paint)
-            canvas.drawText(if (hideRideCharges) "Delivery [Hidden]" else "Delivery", 440f, y, paint)
-            canvas.drawText(if (hideSamanTotal) "Total [Hidden]" else "Total", 510f, y, paint)
+            canvas.drawText(if (effectiveHideSaman) "Item Price [Hidden]" else "Item Price", 360f, y, paint)
+            canvas.drawText(if (effectiveHideRide) "Delivery [Hidden]" else "Delivery", 440f, y, paint)
+            canvas.drawText(if (effectiveHideSaman) "Total [Hidden]" else "Total", 510f, y, paint)
             y += 8f
             canvas.drawLine(30f, y, 565f, y, linePaint)
             y += 15f
@@ -468,9 +481,9 @@ object PdfReportGenerator {
                     } else {
                         canvas.drawText(truncated, 130f, y, paint)
                     }
-                    val priceStr = if (hideSamanTotal) "--" else "Rs. ${p.itemPrice.toInt()}"
-                    val delStr = if (hideRideCharges) "--" else "Rs. ${p.deliveryCharges.toInt()}"
-                    val totalStr = if (hideSamanTotal) "--" else "Rs. ${totalP.toInt()}"
+                    val priceStr = if (effectiveHideSaman) "--" else "Rs. ${p.itemPrice.toInt()}"
+                    val delStr = if (effectiveHideRide) "--" else "Rs. ${p.deliveryCharges.toInt()}"
+                    val totalStr = if (effectiveHideSaman) "--" else "Rs. ${totalP.toInt()}"
                     canvas.drawText(priceStr, 360f, y, paint)
                     canvas.drawText(delStr, 440f, y, paint)
                     canvas.drawText(totalStr, 510f, y, paint)
@@ -492,7 +505,7 @@ object PdfReportGenerator {
 
             paint.typeface = Typeface.DEFAULT_BOLD
             canvas.drawText("Date & Time", 30f, y, paint)
-            canvas.drawText("Amount Paid", 180f, y, paint)
+            canvas.drawText(if (isPdfTotalOnly) "Amount [Hidden]" else "Amount Paid", 180f, y, paint)
             canvas.drawText("Type", 300f, y, paint)
             canvas.drawText("Note", 400f, y, paint)
             y += 8f
@@ -507,7 +520,8 @@ object PdfReportGenerator {
                 for (pay in effectivePayments.take(5)) {
                     val payDate = dateFormat.format(Date(pay.timestamp))
                     canvas.drawText(payDate, 30f, y, paint)
-                    canvas.drawText("Rs. ${pay.amountPaid.toInt()}", 180f, y, paint)
+                    val paidAmountStr = if (isPdfTotalOnly) "--" else "Rs. ${pay.amountPaid.toInt()}"
+                    canvas.drawText(paidAmountStr, 180f, y, paint)
                     canvas.drawText(pay.paymentType, 300f, y, paint)
                     val truncatedNote = if (pay.note.length > 22) pay.note.substring(0, 19) + "..." else pay.note
                     canvas.drawText(truncatedNote, 400f, y, paint)

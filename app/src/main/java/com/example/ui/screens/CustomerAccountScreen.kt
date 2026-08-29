@@ -884,7 +884,8 @@ fun CustomerAccountScreen(
                     hideSamanTotal = hideSamanTotal,
                     hideRideCharges = hideRideCharges,
                     customCustomerName = customCustomerName,
-                    customPhoneNumber = customPhoneNumber
+                    customPhoneNumber = customPhoneNumber,
+                    isPdfTotalOnly = state.isPdfTotalOnly
                 )
                 ShareUtil.shareCustomerPdfReport(context, pdfFile, customCustomerName.ifBlank { debtor.name })
             }
