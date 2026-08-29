@@ -10,7 +10,13 @@ enum class AppThemeMode(
     PURPLE("Purple (جامنی تھیم)", "Purple", 0xFF7C3AED),
     ORANGE("Orange (نارنجی تھیم)", "Orange", 0xFFEA580C),
     RED("Red (سرخ تھیم)", "Red", 0xFFDC2626),
-    TEAL("Teal (فیروزی تھیم)", "Teal", 0xFF0D9488);
+    TEAL("Teal (فیروزی تھیم)", "Teal", 0xFF0D9488),
+    GOLD("Gold / Amber (سنہری تھیم)", "Gold", 0xFFD97706),
+    INDIGO("Indigo (شاہی نیلا تھیم)", "Indigo", 0xFF4F46E5),
+    ROSE("Rose / Pink (گلابی تھیم)", "Rose", 0xFFE11D48),
+    EMERALD("Emerald (زمرد تھیم)", "Emerald", 0xFF059669),
+    COFFEE("Coffee / Brown (کافی تھیم)", "Coffee", 0xFF78350F),
+    SLATE("Slate / Graphite (سلیٹ تھیم)", "Slate", 0xFF475569);
 
     companion object {
         fun fromNameOrDefault(name: String?): AppThemeMode {
@@ -25,6 +31,12 @@ enum class AppThemeMode(
                     "ORANGE" -> ORANGE
                     "RED" -> RED
                     "TEAL" -> TEAL
+                    "GOLD" -> GOLD
+                    "INDIGO" -> INDIGO
+                    "ROSE" -> ROSE
+                    "EMERALD" -> EMERALD
+                    "COFFEE" -> COFFEE
+                    "SLATE" -> SLATE
                     else -> BLUE
                 }
             }

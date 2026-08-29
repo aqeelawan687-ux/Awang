@@ -115,23 +115,50 @@ fun CustomerAccountScreen(
     var selectedParcelToDelete by remember { mutableStateOf<ParcelEntity?>(null) }
     var selectedPaymentToDelete by remember { mutableStateOf<PaymentHistoryEntity?>(null) }
 
-    // Filter customer transactions
+    // Filter customer transactions with strict customer isolation
     val customerRides = state.rides.filter {
-        it.debtorId == debtor.id || (it.note.contains(debtor.name, ignoreCase = true) && it.debtorId == null)
+        it.debtorId == debtor.id || (it.debtorId == null && it.note.contains(debtor.name, ignoreCase = true))
     }
 
     val customerParcels = state.parcels.filter {
-        it.debtorId == debtor.id || (it.recipientName.equals(debtor.name, ignoreCase = true) && it.debtorId == null)
+        it.debtorId == debtor.id || (it.debtorId == null && it.recipientName.equals(debtor.name, ignoreCase = true))
     }
 
     val customerPayments = state.paymentHistory.filter {
-        it.debtorId == debtor.id || (it.debtorName.equals(debtor.name, ignoreCase = true))
+        it.debtorId == debtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(debtor.name, ignoreCase = true))
     }
 
     // Customer Financial Totals
     val totalRidePayment = customerRides.sumOf { it.fareAmount }
     val totalSamanPayment = customerParcels.sumOf { it.itemPrice + it.deliveryCharges }
     val totalPaid = customerPayments.sumOf { it.amountPaid }
+
+    // Tagged & Category-wise Allocation
+    val taggedRidePaid = customerPayments.filter {
+        it.note.contains("Ride", ignoreCase = true) || it.paymentType.contains("Ride", ignoreCase = true)
+    }.sumOf { it.amountPaid }
+
+    val taggedParcelPaid = customerPayments.filter {
+        it.note.contains("Parcel", ignoreCase = true) || it.note.contains("Saman", ignoreCase = true) || it.paymentType.contains("Parcel", ignoreCase = true)
+    }.sumOf { it.amountPaid }
+
+    val untaggedPaid = customerPayments.filter {
+        !it.note.contains("Ride", ignoreCase = true) &&
+        !it.note.contains("Parcel", ignoreCase = true) &&
+        !it.note.contains("Saman", ignoreCase = true) &&
+        !it.paymentType.contains("Ride", ignoreCase = true) &&
+        !it.paymentType.contains("Parcel", ignoreCase = true)
+    }.sumOf { it.amountPaid }
+
+    val rideRemainingBeforeUntagged = (totalRidePayment - taggedRidePaid).coerceAtLeast(0.0)
+    val untaggedToRide = minOf(untaggedPaid, rideRemainingBeforeUntagged)
+    val untaggedToParcel = untaggedPaid - untaggedToRide
+
+    val ridePaid = taggedRidePaid + untaggedToRide
+    val parcelPaid = taggedParcelPaid + untaggedToParcel
+
+    val rideBakaya = (totalRidePayment - ridePaid).coerceAtLeast(0.0)
+    val parcelBakaya = (totalSamanPayment - parcelPaid).coerceAtLeast(0.0)
 
     // Grand Total logic: sum of transactions or legacy debt amount
     val grandTotal = if (customerRides.isNotEmpty() || customerParcels.isNotEmpty()) {
@@ -278,30 +305,89 @@ fun CustomerAccountScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Ledger Totals Grid
+                    // 1. Ride Breakdown
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(text = "Total Ride", fontSize = 11.sp, color = Color.Gray)
+                            Text(text = "Ride Total", fontSize = 10.5.sp, color = Color.Gray)
                             Text(
                                 text = "Rs. ${totalRidePayment.toInt()}",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
                         Column {
-                            Text(text = "Total Saman", fontSize = 11.sp, color = Color.Gray)
+                            Text(text = "Ride Paid", fontSize = 10.5.sp, color = Color.Gray)
+                            Text(
+                                text = "Rs. ${ridePaid.toInt()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = EmeraldGreenPrimary
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(text = "Ride Bakaya", fontSize = 10.5.sp, color = Color.Gray)
+                            Text(
+                                text = "Rs. ${rideBakaya.toInt()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = if (rideBakaya <= 0) EmeraldGreenPrimary else AccentRed
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 2. Saman / Parcel Breakdown
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(text = "Parcel Total", fontSize = 10.5.sp, color = Color.Gray)
                             Text(
                                 text = "Rs. ${totalSamanPayment.toInt()}",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
+                        Column {
+                            Text(text = "Parcel Paid", fontSize = 10.5.sp, color = Color.Gray)
+                            Text(
+                                text = "Rs. ${parcelPaid.toInt()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = EmeraldGreenPrimary
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(text = "Parcel Bakaya", fontSize = 10.5.sp, color = Color.Gray)
+                            Text(
+                                text = "Rs. ${parcelBakaya.toInt()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = if (parcelBakaya <= 0) EmeraldGreenPrimary else AccentRed
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 3. Grand Total, Total Paid, Total Bakaya
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Column {
                             Text(text = "Grand Total", fontSize = 11.sp, color = Color.Gray)
                             Text(
@@ -311,14 +397,7 @@ fun CustomerAccountScreen(
                                 color = AccentBlue
                             )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
                         Column {
                             Text(text = "Total Paid (Wasooli)", fontSize = 11.sp, color = Color.Gray)
                             Text(
@@ -329,8 +408,8 @@ fun CustomerAccountScreen(
                             )
                         }
 
-                        Column {
-                            Text(text = "Baqaya (Remaining)", fontSize = 11.sp, color = Color.Gray)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(text = "Total Bakaya", fontSize = 11.sp, color = Color.Gray)
                             Text(
                                 text = "Rs. ${baqaya.toInt()}",
                                 fontWeight = FontWeight.ExtraBold,
@@ -727,8 +806,8 @@ fun CustomerAccountScreen(
     if (showAddRideDialog) {
         AddRideDialog(
             onDismiss = { showAddRideDialog = false },
-            onConfirm = { from, to, distance, fare, time, note, _ ->
-                viewModel.addRideForDebtor(debtor, from, to, distance, fare, time, note)
+            onConfirm = { from, to, distance, fare, time, note, _, imageUri ->
+                viewModel.addRideForDebtor(debtor, from, to, distance, fare, time, note, imageUri)
                 showAddRideDialog = false
             }
         )
@@ -758,9 +837,12 @@ fun CustomerAccountScreen(
     if (showAddPaymentDialog) {
         RecordPaymentDialog(
             debtor = debtor,
+            totalDue = grandTotal,
+            alreadyPaid = totalPaid,
+            currentBakaya = baqaya,
             onDismiss = { showAddPaymentDialog = false },
-            onConfirm = { amount, note ->
-                viewModel.recordDebtPayment(debtor, amount, note)
+            onConfirm = { amount, paymentType, note ->
+                viewModel.recordDebtPayment(debtor, amount, note, paymentType)
                 showAddPaymentDialog = false
             }
         )
@@ -831,8 +913,8 @@ fun CustomerAccountScreen(
         EditRideDialog(
             ride = ride,
             onDismiss = { selectedRideToEdit = null },
-            onConfirm = { from, to, distance, fare, time, note ->
-                viewModel.updateRide(ride.copy(fromLocation = from, toLocation = to, distanceKm = distance, fareAmount = fare, timeString = time, note = note))
+            onConfirm = { from, to, distance, fare, time, note, imageUri ->
+                viewModel.updateRide(ride.copy(fromLocation = from, toLocation = to, distanceKm = distance, fareAmount = fare, timeString = time, note = note, imageUri = imageUri))
                 selectedRideToEdit = null
             }
         )

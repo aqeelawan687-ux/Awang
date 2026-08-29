@@ -71,6 +71,7 @@ object ApkUpdateManager {
     const val GITHUB_REPO_NAME = "Awang"
     const val GITHUB_RELEASE_API_URL = "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest"
     const val PERMANENT_APK_DOWNLOAD_URL = "https://github.com/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest/download/app-release.apk"
+    private const val FALLBACK_RELEASE_API_URL = "https://api.github.com/repos/$GITHUB_REPO_OWNER/Aqeel/releases/latest"
 
     // Preferences key for 6-hour check throttling
     private const val PREFS_NAME = "aqeel_rider_update_prefs"

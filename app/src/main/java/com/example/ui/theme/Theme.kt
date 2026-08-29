@@ -177,6 +177,174 @@ private fun getThemeColorScheme(themeMode: AppThemeMode, isDark: Boolean): Color
                 onSurface = Color(0xFF042F2E)
             )
         }
+
+        AppThemeMode.GOLD -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFBBF24),
+                secondary = Color(0xFFF59E0B),
+                tertiary = Color(0xFFFDE68A),
+                background = Color(0xFF2E1C05),
+                surface = Color(0xFF3F2707),
+                surfaceContainer = Color(0xFF55350A),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = GoldPrimary,
+                secondary = GoldSecondary,
+                tertiary = AccentAmber,
+                background = GoldLightBg,
+                surface = Color.White,
+                surfaceContainer = GoldContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF2E1C05),
+                onSurface = Color(0xFF2E1C05)
+            )
+        }
+
+        AppThemeMode.INDIGO -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF818CF8),
+                secondary = Color(0xFF6366F1),
+                tertiary = Color(0xFFC7D2FE),
+                background = Color(0xFF131131),
+                surface = Color(0xFF1C1A46),
+                surfaceContainer = Color(0xFF292663),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = IndigoPrimary,
+                secondary = IndigoSecondary,
+                tertiary = AccentAmber,
+                background = IndigoLightBg,
+                surface = Color.White,
+                surfaceContainer = IndigoContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF131131),
+                onSurface = Color(0xFF131131)
+            )
+        }
+
+        AppThemeMode.ROSE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFB7185),
+                secondary = Color(0xFFF43F5E),
+                tertiary = Color(0xFFFECDD3),
+                background = Color(0xFF2B0B13),
+                surface = Color(0xFF3E101D),
+                surfaceContainer = Color(0xFF561628),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = RosePrimary,
+                secondary = RoseSecondary,
+                tertiary = AccentAmber,
+                background = RoseLightBg,
+                surface = Color.White,
+                surfaceContainer = RoseContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF2B0B13),
+                onSurface = Color(0xFF2B0B13)
+            )
+        }
+
+        AppThemeMode.EMERALD -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF34D399),
+                secondary = Color(0xFF10B981),
+                tertiary = Color(0xFFA7F3D0),
+                background = Color(0xFF04281E),
+                surface = Color(0xFF063A2C),
+                surfaceContainer = Color(0xFF0B4E3B),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = EmeraldPrimary,
+                secondary = EmeraldSecondary,
+                tertiary = AccentAmber,
+                background = EmeraldLightBg,
+                surface = Color.White,
+                surfaceContainer = EmeraldContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF04281E),
+                onSurface = Color(0xFF04281E)
+            )
+        }
+
+        AppThemeMode.COFFEE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFD97706),
+                secondary = Color(0xFFB45309),
+                tertiary = Color(0xFFFDE68A),
+                background = Color(0xFF241408),
+                surface = Color(0xFF351F0D),
+                surfaceContainer = Color(0xFF4A2B12),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = CoffeePrimary,
+                secondary = CoffeeSecondary,
+                tertiary = AccentAmber,
+                background = CoffeeLightBg,
+                surface = Color.White,
+                surfaceContainer = CoffeeContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF241408),
+                onSurface = Color(0xFF241408)
+            )
+        }
+
+        AppThemeMode.SLATE -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF94A3B8),
+                secondary = Color(0xFF64748B),
+                tertiary = Color(0xFFCBD5E1),
+                background = Color(0xFF0F172A),
+                surface = Color(0xFF1E293B),
+                surfaceContainer = Color(0xFF334155),
+                onPrimary = Color.Black,
+                onSecondary = Color.Black,
+                onBackground = Color.White,
+                onSurface = Color.White
+            )
+        } else {
+            lightColorScheme(
+                primary = SlatePrimary,
+                secondary = SlateSecondary,
+                tertiary = AccentAmber,
+                background = SlateLightBg,
+                surface = Color.White,
+                surfaceContainer = SlateContainer,
+                onPrimary = Color.White,
+                onSecondary = Color.White,
+                onBackground = Color(0xFF0F172A),
+                onSurface = Color(0xFF0F172A)
+            )
+        }
     }
 }
 

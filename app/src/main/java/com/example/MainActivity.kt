@@ -214,8 +214,8 @@ fun RiderApp(viewModel: RiderViewModel) {
     if (showAddRideDialog) {
         AddRideDialog(
             onDismiss = { showAddRideDialog = false },
-            onConfirm = { from, to, km, fare, time, note, customer ->
-                viewModel.addRide(from, to, km, fare, time, note, customer)
+            onConfirm = { from, to, km, fare, time, note, customer, imageUri ->
+                viewModel.addRide(from, to, km, fare, time, note, customer, imageUri)
                 showAddRideDialog = false
             }
         )

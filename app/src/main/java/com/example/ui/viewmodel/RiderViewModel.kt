@@ -294,15 +294,15 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun recordDebtPayment(debtor: DebtorEntity, amountPaid: Double, note: String) {
+    fun recordDebtPayment(debtor: DebtorEntity, amountPaid: Double, note: String, paymentType: String = "Cash") {
         viewModelScope.launch {
-            repository.recordDebtPayment(debtor, amountPaid, note)
+            repository.recordDebtPayment(debtor, amountPaid, note, paymentType)
             repository.addCustomerHistory(
                 customerName = debtor.name,
                 phoneNumber = debtor.phoneNumber,
                 actionType = "Payment",
                 title = "Payment Received (Rs. ${amountPaid.toInt()})",
-                details = "Remaining Balance: Rs. ${(debtor.totalDebt - amountPaid).coerceAtLeast(0.0).toInt()} | ${note.ifBlank { "Wasooli recorded" }}",
+                details = "Remaining Balance: Rs. ${(debtor.totalDebt - amountPaid).coerceAtLeast(0.0).toInt()} | Type: $paymentType | ${note.ifBlank { "Wasooli recorded" }}",
                 amount = amountPaid
             )
         }
@@ -475,7 +475,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         fareAmount: Double,
         timeString: String,
         note: String,
-        customerName: String = ""
+        customerName: String = "",
+        imageUri: String? = null
     ) {
         viewModelScope.launch {
             val rideNote = if (customerName.isNotBlank()) "Customer: ${customerName.trim()} | ${note.trim()}".trim() else note.trim()
@@ -488,7 +489,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     val cal = Calendar.getInstance()
                     String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
                 },
-                note = rideNote
+                note = rideNote,
+                imageUri = imageUri
             )
             repository.addRide(ride)
 
@@ -523,7 +525,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     actionType = "Ride",
                     title = "Ride: $fromLocation ➔ $toLocation",
                     details = "Distance: $distanceKm KM | Fare: Rs. ${fareAmount.toInt()}${if (note.isNotBlank()) " | Note: $note" else ""}",
-                    amount = fareAmount
+                    amount = fareAmount,
+                    imageUri = imageUri
                 )
             }
         }
@@ -610,7 +613,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         distanceKm: Double,
         fareAmount: Double,
         timeString: String,
-        note: String
+        note: String,
+        imageUri: String? = null
     ) {
         viewModelScope.launch {
             val ride = RideEntity(
@@ -623,9 +627,18 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     val cal = Calendar.getInstance()
                     String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
                 },
-                note = "Customer: ${debtor.name} | ${note.trim()}".trim()
+                note = "Customer: ${debtor.name} | ${note.trim()}".trim(),
+                imageUri = imageUri
             )
             repository.addRide(ride)
+
+            if (fareAmount > 0) {
+                val updatedDebtor = debtor.copy(
+                    totalDebt = debtor.totalDebt + fareAmount,
+                    lastUpdatedTimestamp = System.currentTimeMillis()
+                )
+                repository.updateDebtor(updatedDebtor)
+            }
 
             repository.addCustomerHistory(
                 customerName = debtor.name,
@@ -633,7 +646,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                 actionType = "Ride",
                 title = "Ride: $fromLocation ➔ $toLocation",
                 details = "Distance: $distanceKm KM | Fare: Rs. ${fareAmount.toInt()}",
-                amount = fareAmount
+                amount = fareAmount,
+                imageUri = imageUri
             )
         }
     }
@@ -664,6 +678,13 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             repository.addParcel(parcel)
 
             val total = itemPrice + deliveryCharges
+            if (total > 0) {
+                val updatedDebtor = debtor.copy(
+                    totalDebt = debtor.totalDebt + total,
+                    lastUpdatedTimestamp = System.currentTimeMillis()
+                )
+                repository.updateDebtor(updatedDebtor)
+            }
             repository.addCustomerHistory(
                 customerName = debtor.name,
                 phoneNumber = debtor.phoneNumber,

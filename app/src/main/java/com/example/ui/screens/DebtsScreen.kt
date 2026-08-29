@@ -232,13 +232,25 @@ fun DebtsScreen(
         }
     }
 
-    // Payment Deduction Dialog ("Paise Mil Gaye")
+    // Payment Deduction Dialog ("Add Payment / Bakaya Payment")
     selectedDebtorForPayment?.let { debtor ->
+        val debtorPayments = state.paymentHistory.filter { it.debtorId == debtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(debtor.name, ignoreCase = true)) }
+        val debtorRides = state.rides.filter { it.debtorId == debtor.id || (it.debtorId == null && it.note.contains(debtor.name, ignoreCase = true)) }
+        val debtorParcels = state.parcels.filter { it.debtorId == debtor.id || (it.debtorId == null && it.recipientName.equals(debtor.name, ignoreCase = true)) }
+        val totalR = debtorRides.sumOf { it.fareAmount }
+        val totalP = debtorParcels.sumOf { it.itemPrice + it.deliveryCharges }
+        val paid = debtorPayments.sumOf { it.amountPaid }
+        val grand = if (debtorRides.isNotEmpty() || debtorParcels.isNotEmpty()) totalR + totalP else debtor.totalDebt + paid
+        val bakaya = (grand - paid).coerceAtLeast(0.0)
+
         RecordPaymentDialog(
             debtor = debtor,
+            totalDue = grand,
+            alreadyPaid = paid,
+            currentBakaya = bakaya,
             onDismiss = { selectedDebtorForPayment = null },
-            onConfirm = { amount, note ->
-                viewModel.recordDebtPayment(debtor, amount, note)
+            onConfirm = { amount, paymentType, note ->
+                viewModel.recordDebtPayment(debtor, amount, note, paymentType)
                 selectedDebtorForPayment = null
             }
         )

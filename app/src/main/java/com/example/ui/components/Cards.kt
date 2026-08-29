@@ -593,6 +593,15 @@ fun RideCard(
 ) {
     val dateStr = SimpleDateFormat("dd MMM", Locale.US).format(Date(ride.dateMillis))
     val fareText = if (isBalanceHidden) "Rs. ****" else "Rs. ${ride.fareAmount.toInt()}"
+    var showFullPreview by remember { mutableStateOf(false) }
+
+    if (showFullPreview && !ride.imageUri.isNullOrBlank()) {
+        FullScreenImageViewerDialog(
+            imageUri = ride.imageUri,
+            title = if (ride.fromLocation.isNotBlank() && ride.toLocation.isNotBlank()) "Ride: ${ride.fromLocation} ➔ ${ride.toLocation}" else "Ride Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     Card(
         modifier = modifier
@@ -602,114 +611,154 @@ fun RideCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(EmeraldGreenPrimary.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.DirectionsBike,
-                    contentDescription = null,
-                    tint = EmeraldGreenPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = ride.fromLocation,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Navigation,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(14.dp),
-                        tint = Color.Gray
-                    )
-                    Text(
-                        text = ride.toLocation,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "📍 ${ride.distanceKm} KM",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "🕒 ${ride.timeString.ifEmpty { dateStr }}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-
-                if (ride.note.isNotBlank()) {
-                    Text(
-                        text = ride.note,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = fareText,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = EmeraldGreenPrimary
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(EmeraldGreenPrimary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    IconButton(
-                        onClick = onEditClick,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .testTag("edit_ride_button_${ride.id}")
-                    ) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsBike,
+                        contentDescription = null,
+                        tint = EmeraldGreenPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = ride.fromLocation,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                         Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Ride",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(14.dp),
+                            tint = Color.Gray
+                        )
+                        Text(
+                            text = ride.toLocation,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    IconButton(
-                        onClick = onDeleteClick,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .testTag("delete_ride_button_${ride.id}")
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "📍 ${ride.distanceKm} KM",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "🕒 ${ride.timeString.ifEmpty { dateStr }}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+
+                    if (ride.note.isNotBlank()) {
+                        Text(
+                            text = ride.note,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = fareText,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = EmeraldGreenPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
+                        IconButton(
+                            onClick = onEditClick,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("edit_ride_button_${ride.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Ride",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onDeleteClick,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("delete_ride_button_${ride.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Ride Image Thumbnail Row
+            if (!ride.imageUri.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable { showFullPreview = true }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        AsyncImage(
+                            model = ride.imageUri,
+                            contentDescription = "Ride Photo",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "📸 Ride Photo Attached",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "🔍 Tap photo to view full / دیکھنے کیلئے ٹیپ کریں",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray,
+                            fontSize = 10.sp
                         )
                     }
                 }

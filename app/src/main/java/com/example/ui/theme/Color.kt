@@ -40,6 +40,42 @@ val TealSecondary = Color(0xFF14B8A6)
 val TealContainer = Color(0xFFCCFBF1)
 val TealLightBg = Color(0xFFF0FDFA)
 
+// 7. Gold Theme Palette
+val GoldPrimary = Color(0xFFD97706)
+val GoldSecondary = Color(0xFFF59E0B)
+val GoldContainer = Color(0xFFFEF3C7)
+val GoldLightBg = Color(0xFFFFFBEB)
+
+// 8. Indigo Theme Palette
+val IndigoPrimary = Color(0xFF4F46E5)
+val IndigoSecondary = Color(0xFF6366F1)
+val IndigoContainer = Color(0xFFE0E7FF)
+val IndigoLightBg = Color(0xFFEEF2FF)
+
+// 9. Rose Theme Palette
+val RosePrimary = Color(0xFFE11D48)
+val RoseSecondary = Color(0xFFF43F5E)
+val RoseContainer = Color(0xFFFFE4E6)
+val RoseLightBg = Color(0xFFFFF1F2)
+
+// 10. Emerald Theme Palette
+val EmeraldPrimary = Color(0xFF059669)
+val EmeraldSecondary = Color(0xFF10B981)
+val EmeraldContainer = Color(0xFFD1FAE5)
+val EmeraldLightBg = Color(0xFFECFDF5)
+
+// 11. Coffee Theme Palette
+val CoffeePrimary = Color(0xFF78350F)
+val CoffeeSecondary = Color(0xFF92400E)
+val CoffeeContainer = Color(0xFFFEF3C7)
+val CoffeeLightBg = Color(0xFFFFFBEB)
+
+// 12. Slate Theme Palette
+val SlatePrimary = Color(0xFF475569)
+val SlateSecondary = Color(0xFF64748B)
+val SlateContainer = Color(0xFFF1F5F9)
+val SlateLightBg = Color(0xFFF8FAFC)
+
 // Shared Legacy & Accent Colors
 val Emerald80 = Color(0xFF6EE7B7)
 val EmeraldGreen70 = Color(0xFF10B981)

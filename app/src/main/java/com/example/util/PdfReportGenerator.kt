@@ -346,57 +346,38 @@ object PdfReportGenerator {
         val baqaya = (grandTotal - totalPaid).coerceAtLeast(0.0)
 
         // Summary Box
+        val summaryBoxHeight = 110f
         paint.color = lightGreenBg
-        canvas.drawRoundRect(25f, y, 570f, y + 100f, 10f, 10f, paint)
+        canvas.drawRoundRect(25f, y, 570f, y + summaryBoxHeight, 10f, 10f, paint)
 
         headerPaint.color = primaryGreen
-        headerPaint.textSize = 13f
+        headerPaint.textSize = 12f
         headerPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("CUSTOMER PAYMENT SUMMARY / کسٹمر پیمنٹ خلاصہ", 40f, y + 25f, headerPaint)
+        canvas.drawText("CUSTOMER PAYMENT BREAKDOWN / کسٹمر پیمنٹ و بقایا خلاصہ", 40f, y + 22f, headerPaint)
 
         paint.color = darkGray
-        paint.textSize = 11f
+        paint.textSize = 10f
         paint.typeface = Typeface.DEFAULT
-        val summaryParts = mutableListOf<String>()
-        if (includeRide) {
-            if (hideRideCharges) {
-                summaryParts.add("Rides Count: ${effectiveRides.size}")
-            } else {
-                summaryParts.add("Ride Total: Rs. ${rideTotal.toInt()}")
-            }
-        }
-        if (includeSaman) {
-            if (hideSamanTotal) {
-                summaryParts.add("Saman Items: ${effectiveParcels.size}")
-            } else {
-                summaryParts.add("Saman Total: Rs. ${samanTotal.toInt()}")
-            }
-        }
-        if (!hideRideCharges && !hideSamanTotal) {
-            summaryParts.add("Grand Total: Rs. ${grandTotal.toInt()}")
-        }
-        val summaryText = summaryParts.joinToString("  |  ")
 
-        canvas.drawText(summaryText, 40f, y + 50f, paint)
+        val line1 = "Ride Payment: ${if (hideRideCharges) "--" else "Rs. ${rideTotal.toInt()}"}    |    Saman/Parcel Payment: ${if (hideSamanTotal) "--" else "Rs. ${samanTotal.toInt()}"}"
+        canvas.drawText(line1, 40f, y + 44f, paint)
 
-        if (includePaymentHistory) {
-            canvas.drawText("Total Paid (Wasooli): Rs. ${totalPaid.toInt()}", 40f, y + 75f, paint)
-        }
+        val line2 = "Grand Total: ${if (hideRideCharges && hideSamanTotal) "--" else "Rs. ${grandTotal.toInt()}"}    |    Total Paid: Rs. ${totalPaid.toInt()}"
+        canvas.drawText(line2, 40f, y + 66f, paint)
 
         paint.color = if (baqaya <= 0) primaryGreen else accentRed
         paint.typeface = Typeface.DEFAULT_BOLD
-        val statusStr = if (hideRideCharges && hideSamanTotal) {
-            "Total Amounts: [Hidden]"
+        paint.textSize = 11f
+        val line3 = if (hideRideCharges && hideSamanTotal) {
+            "Total Bakaya: [Hidden]"
         } else if (baqaya <= 0) {
-            "Status: FULL PAID ✨"
+            "Total Bakaya: Rs. 0  (✨ FULL PAID / تمام ادا)"
         } else {
-            "Baqaya: Rs. ${baqaya.toInt()} ⚠️"
+            "Total Bakaya: Rs. ${baqaya.toInt()}  (⚠️ PENDING / بقایا واجب الادا)"
         }
-        val statusX = if (includePaymentHistory) 260f else 40f
-        val statusY = y + 75f
-        canvas.drawText(statusStr, statusX, statusY, paint)
+        canvas.drawText(line3, 40f, y + 90f, paint)
 
-        y += 125f
+        y += summaryBoxHeight + 20f
 
         linePaint.color = Color.LTGRAY
         linePaint.strokeWidth = 1f

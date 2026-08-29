@@ -227,7 +227,7 @@ fun RidesScreen(
         EditRideDialog(
             ride = ride,
             onDismiss = { selectedRideToEdit = null },
-            onConfirm = { from, to, distanceKm, fareAmount, timeString, note ->
+            onConfirm = { from, to, distanceKm, fareAmount, timeString, note, imageUri ->
                 viewModel.updateRide(
                     ride.copy(
                         fromLocation = from,
@@ -235,7 +235,8 @@ fun RidesScreen(
                         distanceKm = distanceKm,
                         fareAmount = fareAmount,
                         timeString = timeString,
-                        note = note
+                        note = note,
+                        imageUri = imageUri
                     )
                 )
                 selectedRideToEdit = null

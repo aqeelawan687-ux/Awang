@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
+import com.example.ui.theme.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -205,7 +207,7 @@ fun AddDebtorDialog(
 
                 if (isError) {
                     Text(
-                        text = "Meherbani karke Naam aur Qarze ke Paise likhein",
+                        text = "Meherbani karke Customer Name zaroor likhein",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
@@ -224,9 +226,9 @@ fun AddDebtorDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val debtVal = debt.toDoubleOrNull()
-                            if (name.isNotBlank() && debtVal != null && debtVal > 0) {
-                                onConfirm(name, phone, debtVal, note)
+                            val debtVal = debt.toDoubleOrNull() ?: 0.0
+                            if (name.isNotBlank() && debtVal >= 0.0) {
+                                onConfirm(name.trim(), phone.trim(), debtVal, note.trim())
                             } else {
                                 isError = true
                             }
@@ -241,81 +243,260 @@ fun AddDebtorDialog(
     }
 }
 
-// 2. RECORD PAYMENT DIALOG ("Paise Mil Gaye")
+// 2. RECORD PAYMENT DIALOG ("Add Payment / Bakaya Payment")
 @Composable
 fun RecordPaymentDialog(
     debtor: DebtorEntity,
+    totalDue: Double = debtor.totalDebt,
+    alreadyPaid: Double = 0.0,
+    currentBakaya: Double = (totalDue - alreadyPaid).coerceAtLeast(0.0),
     onDismiss: () -> Unit,
-    onConfirm: (amount: Double, note: String) -> Unit
+    onConfirm: (amount: Double, paymentType: String, note: String) -> Unit
 ) {
-    var amountText by remember { mutableStateOf(debtor.totalDebt.toInt().toString()) }
-    var note by remember { mutableStateOf("Paise mil gaye") }
+    val initialAmount = if (currentBakaya > 0) currentBakaya.toInt().toString() else "0"
+    var amountText by remember { mutableStateOf(initialAmount) }
+    var paymentCategory by remember { mutableStateOf("Khata") } // "Khata", "Ride", "Parcel"
+    var paymentMethod by remember { mutableStateOf("Cash") }
+    var customNote by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
+
+    val enteredAmount = amountText.toDoubleOrNull() ?: 0.0
+    val newTotalPaid = alreadyPaid + enteredAmount
+    val remainingBakaya = (currentBakaya - enteredAmount).coerceAtLeast(0.0)
+    val isFullyPaid = enteredAmount >= currentBakaya && currentBakaya > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("dialog_record_payment"),
         title = {
-            Text(
-                text = "Paise Mil Gaye / پیسے مل گئے",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Add Payment / وصولی و بقایا",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isFullyPaid || (currentBakaya <= 0 && enteredAmount == 0.0)) EmeraldGreenPrimary.copy(alpha = 0.2f) else SoftRedBg
+                ) {
+                    Text(
+                        text = if (isFullyPaid) "✨ FULL PAID" else "⚠️ BAKAYA",
+                        color = if (isFullyPaid) EmeraldGreenPrimary else AccentRed,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
         },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Text(
-                    text = "${debtor.name} se milay huay paise darj karein:",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Baqi Qarza: Rs. ${debtor.totalDebt.toInt()}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.Bold
+                    text = "Customer: ${debtor.name}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Quick Full Bill Payment Button
-                if (debtor.totalDebt > 0) {
-                    OutlinedButton(
-                        onClick = {
-                            amountText = debtor.totalDebt.toInt().toString()
-                            note = "Full Bill Paid - ADA HO GAYA"
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldGreenPrimary)
-                    ) {
-                        Text(text = "⚡ Full Bill Paid / مکمل ادا کریں (Rs. ${debtor.totalDebt.toInt()})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                // Account Overview Card (Total, Paid, Previous Bakaya)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Total Amount", fontSize = 10.sp, color = Color.Gray)
+                                Text("Rs. ${totalDue.toInt()}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                            Column {
+                                Text("Paid Amount", fontSize = 10.sp, color = Color.Gray)
+                                Text("Rs. ${alreadyPaid.toInt()}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = EmeraldGreenPrimary)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Previous Bakaya", fontSize = 10.sp, color = Color.Gray)
+                                Text("Rs. ${currentBakaya.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = AccentRed)
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Quick Action Buttons (Full / Half Payment)
+                if (currentBakaya > 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                amountText = currentBakaya.toInt().toString()
+                                isError = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldGreenPrimary)
+                        ) {
+                            Text(text = "⚡ Full (Rs. ${currentBakaya.toInt()})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        val halfAmount = (currentBakaya / 2).toInt()
+                        if (halfAmount > 0) {
+                            OutlinedButton(
+                                onClick = {
+                                    amountText = halfAmount.toString()
+                                    isError = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
+                            ) {
+                                Text(text = "50% (Rs. $halfAmount)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Input Field for New Payment
                 OutlinedTextField(
                     value = amountText,
-                    onValueChange = { amountText = it; isError = false },
-                    label = { Text("Milay Huay Paise (Rs)") },
+                    onValueChange = {
+                        amountText = it.filter { char -> char.isDigit() || char == '.' }
+                        isError = false
+                    },
+                    label = { Text("New Payment / ادا کی گئی رقم (Rs)") },
                     leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("input_payment_amount"),
                     singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Wazahat / Note") },
+                // Live Calculation Card: Previous Bakaya - New Payment = Remaining Bakaya
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (remainingBakaya <= 0) MintContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Previous Bakaya:", fontSize = 11.sp, color = Color.Gray)
+                            Text("Rs. ${currentBakaya.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("New Payment:", fontSize = 11.sp, color = Color.Gray)
+                            Text("Rs. ${enteredAmount.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldGreenPrimary)
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.Gray.copy(alpha = 0.2f))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Remaining Bakaya (باقی):", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                text = if (remainingBakaya <= 0) "Rs. 0 (Saf/Clear)" else "Rs. ${remainingBakaya.toInt()}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (remainingBakaya <= 0) EmeraldGreenPrimary else AccentRed
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Payment Category Selector (Khata / Ride / Parcel)
+                Text("Payment Category / کھاتہ کی قسم:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val categories = listOf(
+                        "Khata" to "All Bill / کھاتہ",
+                        "Ride" to "Ride / رائڈ",
+                        "Parcel" to "Saman / سامان"
+                    )
+                    categories.forEach { (catKey, catLabel) ->
+                        OutlinedButton(
+                            onClick = { paymentCategory = catKey },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (paymentCategory == catKey) EmeraldGreenPrimary.copy(alpha = 0.15f) else Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f).testTag("btn_payment_cat_$catKey"),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                        ) {
+                            Text(text = catLabel, fontSize = 9.5.sp, maxLines = 1)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Payment Method Selector
+                Text("Payment Method / ذریعہ ادائیگی:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val methods = listOf("Cash", "Easypaisa", "JazzCash", "Bank")
+                    methods.forEach { method ->
+                        OutlinedButton(
+                            onClick = { paymentMethod = method },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (paymentMethod == method) AccentBlue.copy(alpha = 0.15f) else Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f).testTag("btn_payment_method_$method"),
+                            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
+                        ) {
+                            Text(text = method, fontSize = 9.5.sp, maxLines = 1)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = customNote,
+                    onValueChange = { customNote = it },
+                    label = { Text("Wazahat / Note (Optional)") },
+                    placeholder = { Text("e.g. Wasooli ba-silsila $paymentCategory") },
+                    modifier = Modifier.fillMaxWidth().testTag("input_payment_note"),
                     singleLine = true
                 )
 
                 if (isError) {
                     Text(
-                        text = "Sahi rasiya amount likhein",
+                        text = "Meherbani karke 0 se zyada sahi amount likhein",
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
@@ -325,17 +506,32 @@ fun RecordPaymentDialog(
                 onClick = {
                     val amt = amountText.toDoubleOrNull()
                     if (amt != null && amt > 0) {
-                        onConfirm(amt, note)
+                        val autoNote = if (customNote.isNotBlank()) {
+                            customNote.trim()
+                        } else {
+                            val catNote = when (paymentCategory) {
+                                "Ride" -> "Ride Payment"
+                                "Parcel" -> "Saman/Parcel Payment"
+                                else -> "Account Wasooli"
+                            }
+                            "$catNote - Rs. ${amt.toInt()} (Bakaya: Rs. ${remainingBakaya.toInt()})"
+                        }
+                        val fullType = "$paymentMethod ($paymentCategory)"
+                        onConfirm(amt, fullType, autoNote)
                     } else {
                         isError = true
                     }
-                }
+                },
+                modifier = Modifier.testTag("btn_confirm_payment")
             ) {
                 Text("Confirm / اوکے")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("btn_dismiss_payment")
+            ) {
                 Text("Cancel")
             }
         }
@@ -646,7 +842,7 @@ fun AddParcelDialog(
 
                 if (isError) {
                     Text(
-                        text = "Meherbani karke customer ka naam aur charges darj karein",
+                        text = "Meherbani karke customer ka naam ya saman darj karein",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
@@ -667,15 +863,16 @@ fun AddParcelDialog(
                         onClick = {
                             val price = itemPriceText.toDoubleOrNull() ?: 0.0
                             val delivery = deliveryChargesText.toDoubleOrNull() ?: 0.0
-                            if (recipientName.isNotBlank()) {
+                            val targetRecipient = recipientName.ifBlank { "Customer" }
+                            if (recipientName.isNotBlank() || samanName.isNotBlank() || itemDetails.isNotBlank()) {
                                 onConfirm(
                                     shopName.ifBlank { "Dukan" },
-                                    recipientName,
-                                    recipientAddress,
-                                    itemDetails,
-                                    price,
-                                    delivery,
-                                    samanName,
+                                    targetRecipient.trim(),
+                                    recipientAddress.trim(),
+                                    itemDetails.trim(),
+                                    price.coerceAtLeast(0.0),
+                                    delivery.coerceAtLeast(0.0),
+                                    samanName.trim(),
                                     selectedImageUri
                                 )
                             } else {
@@ -695,7 +892,7 @@ fun AddParcelDialog(
 @Composable
 fun AddRideDialog(
     onDismiss: () -> Unit,
-    onConfirm: (from: String, to: String, distanceKm: Double, fareAmount: Double, timeString: String, note: String, customerName: String) -> Unit
+    onConfirm: (from: String, to: String, distanceKm: Double, fareAmount: Double, timeString: String, note: String, customerName: String, imageUri: String?) -> Unit
 ) {
     var fromLocation by remember { mutableStateOf("") }
     var toLocation by remember { mutableStateOf("") }
@@ -703,7 +900,43 @@ fun AddRideDialog(
     var distanceKmText by remember { mutableStateOf("") }
     var fareAmountText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    var showFullPreview by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            try {
+                val photoFile = File(context.filesDir, "ride_cam_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(photoFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                selectedImageUri = Uri.fromFile(photoFile).toString()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri.toString()
+        }
+    }
+
+    if (showFullPreview && selectedImageUri != null) {
+        FullScreenImageViewerDialog(
+            imageUri = selectedImageUri!!,
+            title = if (fromLocation.isNotBlank() && toLocation.isNotBlank()) "Ride: $fromLocation ➔ $toLocation" else "Ride Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     // Auto-update KM estimate when Locations change
     fun updateAutoKm() {
@@ -726,6 +959,7 @@ fun AddRideDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 Row(
@@ -815,9 +1049,147 @@ fun AddRideDialog(
                     singleLine = true
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Ride Photo Section (Camera / Scan + Gallery Upload)
+                Text(
+                    text = "Ride ki Tasweer / رائڈ کی تصویر",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (selectedImageUri != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable { showFullPreview = true }
+                                    .padding(4.dp)
+                            ) {
+                                Box {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "Ride Photo Preview",
+                                        modifier = Modifier
+                                            .size(65.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                                            .align(Alignment.BottomEnd),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ZoomIn,
+                                            contentDescription = "Zoom",
+                                            tint = androidx.compose.ui.graphics.Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("Photo Added ✓", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = EmeraldGreenPrimary)
+                                    Text("Tap to view full / دیکھنے کیلئے ٹیپ کریں", fontSize = 10.sp, color = androidx.compose.ui.graphics.Color.Gray)
+                                }
+                            }
+
+                            Row {
+                                IconButton(
+                                    onClick = { cameraLauncher.launch(null) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Retake Camera",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { photoPickerLauncher.launch("image/*") },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoLibrary,
+                                        contentDescription = "Change Photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove photo",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { cameraLauncher.launch(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Camera / Scan",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📷 Camera / Scan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = "Attach / Gallery",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📎 Attach Photo", fontSize = 11.sp)
+                        }
+                    }
+                }
+
                 if (isError) {
                     Text(
-                        text = "Kahan Se, Kahan Tak aur Kiraya zaroor likhein",
+                        text = "Kahan Se aur Kahan Tak zaroor likhein",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
@@ -837,9 +1209,9 @@ fun AddRideDialog(
                     Button(
                         onClick = {
                             val km = distanceKmText.toDoubleOrNull() ?: 3.0
-                            val fare = fareAmountText.toDoubleOrNull()
-                            if (fromLocation.isNotBlank() && toLocation.isNotBlank() && fare != null) {
-                                onConfirm(fromLocation, toLocation, km, fare, "", note, customerName)
+                            val fare = fareAmountText.toDoubleOrNull() ?: 0.0
+                            if (fromLocation.isNotBlank() && toLocation.isNotBlank() && fare >= 0.0) {
+                                onConfirm(fromLocation.trim(), toLocation.trim(), km, fare, "", note.trim(), customerName.trim(), selectedImageUri)
                             } else {
                                 isError = true
                             }
@@ -1226,12 +1598,21 @@ fun SettingsDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = mode.titleUrdu,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) EmeraldGreenPrimary else MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(androidx.compose.ui.graphics.Color(mode.primaryColorLong))
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = mode.titleUrdu,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                                 if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
@@ -1555,7 +1936,7 @@ fun EditDebtorDialog(
 fun EditRideDialog(
     ride: com.example.data.entity.RideEntity,
     onDismiss: () -> Unit,
-    onConfirm: (from: String, to: String, distanceKm: Double, fareAmount: Double, timeString: String, note: String) -> Unit
+    onConfirm: (from: String, to: String, distanceKm: Double, fareAmount: Double, timeString: String, note: String, imageUri: String?) -> Unit
 ) {
     var fromLocation by remember { mutableStateOf(ride.fromLocation) }
     var toLocation by remember { mutableStateOf(ride.toLocation) }
@@ -1563,7 +1944,43 @@ fun EditRideDialog(
     var fareAmountText by remember { mutableStateOf(ride.fareAmount.toInt().toString()) }
     var timeString by remember { mutableStateOf(ride.timeString) }
     var note by remember { mutableStateOf(ride.note) }
+    var selectedImageUri by remember { mutableStateOf<String?>(ride.imageUri) }
+    var showFullPreview by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            try {
+                val photoFile = File(context.filesDir, "ride_cam_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(photoFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                selectedImageUri = Uri.fromFile(photoFile).toString()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri.toString()
+        }
+    }
+
+    if (showFullPreview && selectedImageUri != null) {
+        FullScreenImageViewerDialog(
+            imageUri = selectedImageUri!!,
+            title = if (fromLocation.isNotBlank() && toLocation.isNotBlank()) "Ride: $fromLocation ➔ $toLocation" else "Ride Photo",
+            onDismiss = { showFullPreview = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1576,7 +1993,7 @@ fun EditRideDialog(
             )
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = fromLocation,
                     onValueChange = { fromLocation = it; isError = false },
@@ -1639,6 +2056,144 @@ fun EditRideDialog(
                     singleLine = true
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Ride Photo Section (Camera / Scan + Gallery Upload)
+                Text(
+                    text = "Ride ki Tasweer / رائڈ کی تصویر",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (selectedImageUri != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable { showFullPreview = true }
+                                    .padding(4.dp)
+                            ) {
+                                Box {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "Ride Photo Preview",
+                                        modifier = Modifier
+                                            .size(65.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                                            .align(Alignment.BottomEnd),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ZoomIn,
+                                            contentDescription = "Zoom",
+                                            tint = androidx.compose.ui.graphics.Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("Photo Added ✓", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = EmeraldGreenPrimary)
+                                    Text("Tap to view full / دیکھنے کیلئے ٹیپ کریں", fontSize = 10.sp, color = androidx.compose.ui.graphics.Color.Gray)
+                                }
+                            }
+
+                            Row {
+                                IconButton(
+                                    onClick = { cameraLauncher.launch(null) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Retake Camera",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { photoPickerLauncher.launch("image/*") },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoLibrary,
+                                        contentDescription = "Change Photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove photo",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { cameraLauncher.launch(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Camera / Scan",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📷 Camera / Scan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = "Attach / Gallery",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("📎 Attach Photo", fontSize = 11.sp)
+                        }
+                    }
+                }
+
                 if (isError) {
                     Text(
                         text = "From, To aur Kiraya sahi likhein",
@@ -1653,9 +2208,9 @@ fun EditRideDialog(
             Button(
                 onClick = {
                     val km = distanceKmText.toDoubleOrNull() ?: ride.distanceKm
-                    val fare = fareAmountText.toDoubleOrNull()
-                    if (fromLocation.isNotBlank() && toLocation.isNotBlank() && fare != null && fare >= 0) {
-                        onConfirm(fromLocation.trim(), toLocation.trim(), km, fare, timeString.trim(), note.trim())
+                    val fare = fareAmountText.toDoubleOrNull() ?: 0.0
+                    if (fromLocation.isNotBlank() && toLocation.isNotBlank() && fare >= 0.0) {
+                        onConfirm(fromLocation.trim(), toLocation.trim(), km, fare, timeString.trim(), note.trim(), selectedImageUri)
                     } else {
                         isError = true
                     }
@@ -1965,8 +2520,9 @@ fun EditParcelDialog(
                 onClick = {
                     val price = itemPriceText.toDoubleOrNull() ?: 0.0
                     val delivery = deliveryChargesText.toDoubleOrNull() ?: 0.0
-                    if (recipientName.isNotBlank()) {
-                        onConfirm(shopName, recipientName, recipientAddress, itemDetails, price, delivery, samanName, selectedImageUri)
+                    val targetRecipient = recipientName.ifBlank { "Customer" }
+                    if (recipientName.isNotBlank() || samanName.isNotBlank() || itemDetails.isNotBlank()) {
+                        onConfirm(shopName, targetRecipient.trim(), recipientAddress.trim(), itemDetails.trim(), price.coerceAtLeast(0.0), delivery.coerceAtLeast(0.0), samanName.trim(), selectedImageUri)
                     } else {
                         isError = true
                     }

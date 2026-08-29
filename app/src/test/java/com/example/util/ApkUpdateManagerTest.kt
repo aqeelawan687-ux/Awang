@@ -273,13 +273,13 @@ class ApkUpdateManagerTest {
     @Test
     fun apiConstants_useCorrectOwnerAndRepository() {
         assertEquals("aqeelawan687-ux", ApkUpdateManager.GITHUB_REPO_OWNER)
-        assertEquals("Aqeel", ApkUpdateManager.GITHUB_REPO_NAME)
+        assertEquals("Awang", ApkUpdateManager.GITHUB_REPO_NAME)
         assertEquals(
-            "https://api.github.com/repos/aqeelawan687-ux/Aqeel/releases/latest",
+            "https://api.github.com/repos/aqeelawan687-ux/Awang/releases/latest",
             ApkUpdateManager.GITHUB_RELEASE_API_URL
         )
         assertEquals(
-            "https://github.com/aqeelawan687-ux/Aqeel/releases/latest/download/app-release.apk",
+            "https://github.com/aqeelawan687-ux/Awang/releases/latest/download/app-release.apk",
             ApkUpdateManager.PERMANENT_APK_DOWNLOAD_URL
         )
     }

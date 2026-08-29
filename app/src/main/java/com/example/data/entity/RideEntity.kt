@@ -13,5 +13,6 @@ data class RideEntity(
     val fareAmount: Double,
     val dateMillis: Long = System.currentTimeMillis(),
     val timeString: String = "",
-    val note: String = ""
+    val note: String = "",
+    val imageUri: String? = null
 )
