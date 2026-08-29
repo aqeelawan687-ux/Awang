@@ -77,6 +77,7 @@ import com.example.ui.components.FullScreenImageViewerDialog
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.filled.ZoomIn
 import coil.compose.AsyncImage
+import com.example.ui.components.AppHeaderDropdownMenu
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,6 +88,7 @@ fun CustomerHistoryScreen(
     state: RiderUiState,
     viewModel: RiderViewModel,
     onBackClick: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -226,6 +228,15 @@ fun CustomerHistoryScreen(
                                 )
                             }
                         }
+                    }
+
+                    if (!isSelectionMode) {
+                        AppHeaderDropdownMenu(
+                            onOpenSettings = onOpenSettings,
+                            onOpenCustomerHistory = { /* already here */ },
+                            isBalanceHidden = state.isBalanceHidden,
+                            onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

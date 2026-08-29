@@ -67,6 +67,7 @@ import com.example.data.entity.PaymentHistoryEntity
 import com.example.data.entity.RideEntity
 import com.example.ui.components.AddParcelDialog
 import com.example.ui.components.AddRideDialog
+import com.example.ui.components.AppHeaderDropdownMenu
 import com.example.ui.components.CustomerPdfFilterDialog
 import com.example.ui.components.EditDebtorDialog
 import com.example.ui.components.EditParcelDialog
@@ -93,6 +94,8 @@ fun CustomerAccountScreen(
     state: RiderUiState,
     viewModel: RiderViewModel,
     onBackClick: () -> Unit,
+    onOpenCustomerHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -186,7 +189,7 @@ fun CustomerAccountScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -210,7 +213,7 @@ fun CustomerAccountScreen(
                     }
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { showPdfFilterDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Description,
@@ -232,6 +235,12 @@ fun CustomerAccountScreen(
                             tint = AccentRed
                         )
                     }
+                    AppHeaderDropdownMenu(
+                        onOpenSettings = onOpenSettings,
+                        onOpenCustomerHistory = onOpenCustomerHistory,
+                        isBalanceHidden = state.isBalanceHidden,
+                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))

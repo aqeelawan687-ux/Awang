@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.ui.components.AppHeaderDropdownMenu
 import com.example.ui.components.SettingsDialog
 
 @Composable
@@ -83,6 +84,7 @@ fun DashboardScreen(
     onOpenAddRide: () -> Unit,
     onOpenAddDebtor: () -> Unit,
     onOpenCustomerHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -135,7 +137,7 @@ fun DashboardScreen(
                     }
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     // Hide/Show Balance Toggle Button
                     IconButton(
                         onClick = { viewModel.toggleBalanceVisibility() },
@@ -160,17 +162,13 @@ fun DashboardScreen(
                         )
                     }
 
-                    // Settings Dialog Button
-                    IconButton(
-                        onClick = { showSettingsDialog = true },
-                        modifier = Modifier.testTag("settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    // Three-dot Dropdown Menu with Settings & History
+                    AppHeaderDropdownMenu(
+                        onOpenSettings = onOpenSettings,
+                        onOpenCustomerHistory = onOpenCustomerHistory,
+                        isBalanceHidden = state.isBalanceHidden,
+                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))

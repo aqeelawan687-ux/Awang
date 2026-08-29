@@ -345,6 +345,22 @@ private fun getThemeColorScheme(themeMode: AppThemeMode, isDark: Boolean): Color
                 onSurface = Color(0xFF0F172A)
             )
         }
+
+        AppThemeMode.NIGHT_VISION -> darkColorScheme(
+            primary = Color(0xFF00FF66), // High-visibility Neon Green
+            secondary = Color(0xFFFFB703), // Warning Amber
+            tertiary = Color(0xFF38BDF8), // Cyber Blue
+            background = Color(0xFF000000), // True OLED Deep Black
+            surface = Color(0xFF0D0D0D),
+            surfaceContainer = Color(0xFF181818),
+            surfaceContainerHigh = Color(0xFF222222),
+            onPrimary = Color.Black,
+            onSecondary = Color.Black,
+            onBackground = Color(0xFF00FF66),
+            onSurface = Color(0xFFF1F5F9),
+            onSurfaceVariant = Color(0xFF94A3B8),
+            error = Color(0xFFFF3333)
+        )
     }
 }
 

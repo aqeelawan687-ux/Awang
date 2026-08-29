@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.AppHeaderDropdownMenu
 import com.example.ui.components.GeneralPdfOptionsDialog
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentBlue
@@ -65,6 +66,8 @@ import java.util.Locale
 fun ReportsScreen(
     state: RiderUiState,
     viewModel: RiderViewModel,
+    onOpenCustomerHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -106,17 +109,32 @@ fun ReportsScreen(
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        Text(
-            text = "Report & PDF Generator / رپورٹس",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text = "PDF file banayein aur WhatsApp par share karein",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Report & PDF Generator / رپورٹس",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "PDF file banayein aur WhatsApp par share karein",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            AppHeaderDropdownMenu(
+                onOpenSettings = onOpenSettings,
+                onOpenCustomerHistory = onOpenCustomerHistory,
+                isBalanceHidden = state.isBalanceHidden,
+                onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

@@ -47,6 +47,7 @@ import com.example.ui.screens.DebtsScreen
 import com.example.ui.screens.ParcelsScreen
 import com.example.ui.screens.ReportsScreen
 import com.example.ui.screens.RidesScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.AqeelRiderTheme
 import com.example.ui.theme.EmeraldGreenPrimary
 import com.example.ui.viewmodel.RiderViewModel
@@ -106,6 +107,7 @@ fun RiderApp(viewModel: RiderViewModel) {
     val updateState by ApkUpdateManager.updateState.collectAsStateWithLifecycle()
     var selectedTabItem by remember { mutableIntStateOf(0) }
     var showCustomerHistoryScreen by remember { mutableStateOf(false) }
+    var showSettingsScreen by remember { mutableStateOf(false) }
 
     var showAddDebtorDialog by remember { mutableStateOf(false) }
     var showAddParcelDialog by remember { mutableStateOf(false) }
@@ -116,11 +118,28 @@ fun RiderApp(viewModel: RiderViewModel) {
         ApkUpdateManager.checkLatestUpdate(context, isManualCheck = false)
     }
 
+    if (showSettingsScreen) {
+        SettingsScreen(
+            state = state,
+            viewModel = viewModel,
+            onBackClick = { showSettingsScreen = false },
+            onOpenCustomerHistory = {
+                showSettingsScreen = false
+                showCustomerHistoryScreen = true
+            }
+        )
+        return
+    }
+
     if (showCustomerHistoryScreen) {
         CustomerHistoryScreen(
             state = state,
             viewModel = viewModel,
-            onBackClick = { showCustomerHistoryScreen = false }
+            onBackClick = { showCustomerHistoryScreen = false },
+            onOpenSettings = {
+                showCustomerHistoryScreen = false
+                showSettingsScreen = true
+            }
         )
         return
     }
@@ -162,29 +181,38 @@ fun RiderApp(viewModel: RiderViewModel) {
                 onOpenAddRide = { showAddRideDialog = true },
                 onOpenAddDebtor = { showAddDebtorDialog = true },
                 onOpenCustomerHistory = { showCustomerHistoryScreen = true },
+                onOpenSettings = { showSettingsScreen = true },
                 modifier = modifier
             )
             1 -> DebtsScreen(
                 state = state,
                 viewModel = viewModel,
                 onOpenAddDebtor = { showAddDebtorDialog = true },
+                onOpenCustomerHistory = { showCustomerHistoryScreen = true },
+                onOpenSettings = { showSettingsScreen = true },
                 modifier = modifier
             )
             2 -> ParcelsScreen(
                 state = state,
                 viewModel = viewModel,
                 onOpenAddParcel = { showAddParcelDialog = true },
+                onOpenCustomerHistory = { showCustomerHistoryScreen = true },
+                onOpenSettings = { showSettingsScreen = true },
                 modifier = modifier
             )
             3 -> RidesScreen(
                 state = state,
                 viewModel = viewModel,
                 onOpenAddRide = { showAddRideDialog = true },
+                onOpenCustomerHistory = { showCustomerHistoryScreen = true },
+                onOpenSettings = { showSettingsScreen = true },
                 modifier = modifier
             )
             4 -> ReportsScreen(
                 state = state,
                 viewModel = viewModel,
+                onOpenCustomerHistory = { showCustomerHistoryScreen = true },
+                onOpenSettings = { showSettingsScreen = true },
                 modifier = modifier
             )
         }

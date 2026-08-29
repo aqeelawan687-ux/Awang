@@ -49,12 +49,15 @@ import com.example.ui.viewmodel.RiderViewModel
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.IconButton
+import com.example.ui.components.AppHeaderDropdownMenu
 
 @Composable
 fun RidesScreen(
     state: RiderUiState,
     viewModel: RiderViewModel,
     onOpenAddRide: () -> Unit,
+    onOpenCustomerHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val todayTotalText = if (state.isBalanceHidden) "Rs. ****" else "Rs. ${state.todayRidesTotal.toInt()}"
@@ -115,6 +118,13 @@ fun RidesScreen(
                         Spacer(modifier = Modifier.size(4.dp))
                         Text("Nayi Ride", fontWeight = FontWeight.Bold)
                     }
+
+                    AppHeaderDropdownMenu(
+                        onOpenSettings = onOpenSettings,
+                        onOpenCustomerHistory = onOpenCustomerHistory,
+                        isBalanceHidden = state.isBalanceHidden,
+                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                    )
                 }
             }
 

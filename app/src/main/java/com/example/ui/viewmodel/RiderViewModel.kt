@@ -45,6 +45,7 @@ data class RiderUiState(
     val themeMode: AppThemeMode = AppThemeMode.BLUE,
     val isDarkMode: Boolean = false,
     val isBalanceHidden: Boolean = false,
+    val isPdfTotalOnly: Boolean = false,
     val selectedReportDateMillis: Long = System.currentTimeMillis()
 )
 
@@ -68,6 +69,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val _isDarkMode = MutableStateFlow(false)
     private val _isBalanceHidden = MutableStateFlow(prefs.getBoolean("hide_balance", false))
+    private val _isPdfTotalOnly = MutableStateFlow(prefs.getBoolean("pdf_total_only", false))
     private val _selectedReportDateMillis = MutableStateFlow(System.currentTimeMillis())
 
     init {
@@ -112,15 +114,17 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     private data class UiPrefs(
         val themeMode: AppThemeMode,
         val isDarkMode: Boolean,
-        val isBalanceHidden: Boolean
+        val isBalanceHidden: Boolean,
+        val isPdfTotalOnly: Boolean
     )
 
     private val uiPrefsFlow = combine(
         _themeMode,
         _isDarkMode,
-        _isBalanceHidden
-    ) { themeMode, dark, balanceHidden ->
-        UiPrefs(themeMode, dark, balanceHidden)
+        _isBalanceHidden,
+        _isPdfTotalOnly
+    ) { themeMode, dark, balanceHidden, pdfTotalOnly ->
+        UiPrefs(themeMode, dark, balanceHidden, pdfTotalOnly)
     }
 
     val uiState: StateFlow<RiderUiState> = combine(
@@ -141,6 +145,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         val themeMode = prefs.themeMode
         val dark = prefs.isDarkMode
         val balanceHidden = prefs.isBalanceHidden
+        val pdfTotalOnly = prefs.isPdfTotalOnly
 
         val filteredDebtsList = if (queryDebts.isBlank()) {
             debtors
@@ -215,6 +220,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             themeMode = themeMode,
             isDarkMode = dark,
             isBalanceHidden = balanceHidden,
+            isPdfTotalOnly = pdfTotalOnly,
             selectedReportDateMillis = reportDate
         )
     }.stateIn(
@@ -247,6 +253,17 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         val nextVal = !_isBalanceHidden.value
         _isBalanceHidden.value = nextVal
         prefs.edit().putBoolean("hide_balance", nextVal).apply()
+    }
+
+    fun togglePdfTotalOnly(enabled: Boolean? = null) {
+        val nextVal = enabled ?: !_isPdfTotalOnly.value
+        _isPdfTotalOnly.value = nextVal
+        prefs.edit().putBoolean("pdf_total_only", nextVal).apply()
+    }
+
+    fun setPdfTotalOnly(enabled: Boolean) {
+        _isPdfTotalOnly.value = enabled
+        prefs.edit().putBoolean("pdf_total_only", enabled).apply()
     }
 
     fun setSelectedReportDate(millis: Long) {

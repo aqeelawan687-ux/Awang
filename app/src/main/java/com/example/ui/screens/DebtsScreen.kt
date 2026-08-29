@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.entity.DebtorEntity
 import com.example.data.entity.PaymentHistoryEntity
+import com.example.ui.components.AppHeaderDropdownMenu
 import com.example.ui.components.DebtCard
 import com.example.ui.components.EditPaymentDialog
 import com.example.ui.components.PaymentHistoryDialog
@@ -56,6 +57,8 @@ fun DebtsScreen(
     state: RiderUiState,
     viewModel: RiderViewModel,
     onOpenAddDebtor: () -> Unit,
+    onOpenCustomerHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -77,6 +80,8 @@ fun DebtsScreen(
             state = state,
             viewModel = viewModel,
             onBackClick = { selectedCustomerAccount = null },
+            onOpenSettings = onOpenSettings,
+            onOpenCustomerHistory = onOpenCustomerHistory,
             modifier = modifier
         )
         return
@@ -143,6 +148,13 @@ fun DebtsScreen(
                         Spacer(modifier = Modifier.size(4.dp))
                         Text("Naya Banda", fontWeight = FontWeight.Bold)
                     }
+
+                    AppHeaderDropdownMenu(
+                        onOpenSettings = onOpenSettings,
+                        onOpenCustomerHistory = onOpenCustomerHistory,
+                        isBalanceHidden = state.isBalanceHidden,
+                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                    )
                 }
             }
 
