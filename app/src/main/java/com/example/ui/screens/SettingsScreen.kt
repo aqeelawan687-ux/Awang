@@ -37,6 +37,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -72,6 +78,7 @@ import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.AccentRed
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.EmeraldGreenPrimary
+import com.example.ui.theme.SoftRedBg
 import com.example.ui.viewmodel.RiderUiState
 import com.example.ui.viewmodel.RiderViewModel
 import com.example.util.ApkUpdateManager
@@ -91,6 +98,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    var showResetAppDialog by remember { mutableStateOf(false) }
 
     val updateState by ApkUpdateManager.updateState.collectAsStateWithLifecycle()
 
@@ -98,6 +106,49 @@ fun SettingsScreen(
         AppUpdateDialog(
             updateState = updateState,
             onDismiss = { ApkUpdateManager.resetState() }
+        )
+    }
+
+    if (showResetAppDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetAppDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = AccentRed,
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "App Data Reset Karein?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Kya aap waqai tamam customers, rides, parcels aur hisab kitab ka data clear karna chahte hain? Yeh amal wapis nahi ho sakta.\n\n(App settings aur update system mehfooz rahein ge)."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetAppData()
+                        showResetAppDialog = false
+                        Toast.makeText(context, "App Data Reset Mukammal Ho Gaya", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    modifier = Modifier.testTag("btn_confirm_app_reset")
+                ) {
+                    Text("Haan, Reset Karein", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetAppDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -618,6 +669,56 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Check for Updates / اپڈیٹ چیک کریں")
+                    }
+                }
+            }
+
+            // ==========================================
+            // 6. DANGER ZONE - APP DATA RESET (ڈیٹا ری سیٹ)
+            // ==========================================
+            SettingsSectionHeader(
+                icon = Icons.Default.RestartAlt,
+                title = "App Data Reset / تمام ریکارڈ ری سیٹ",
+                subtitle = "Clear local customer, ride, parcel and payment data"
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("card_settings_reset_app"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = SoftRedBg
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Reset All Records (ڈیٹا کلیئر کریں)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = AccentRed
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Tamam customers, unke hisab kitab, rides aur parcels ko mukammal taur par delete karein.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = { showResetAppDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_settings_reset_data")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteForever,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Reset App Data / تمام ریکارڈ ختم کریں", fontWeight = FontWeight.Bold)
                     }
                 }
             }

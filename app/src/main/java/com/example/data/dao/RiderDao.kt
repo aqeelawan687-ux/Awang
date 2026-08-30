@@ -97,4 +97,16 @@ interface RiderDao {
 
     @Query("DELETE FROM customer_history")
     suspend fun deleteAllCustomerHistory()
+
+    @Query("DELETE FROM debtors")
+    suspend fun deleteAllDebtors()
+
+    @Query("DELETE FROM payment_history")
+    suspend fun deleteAllPaymentHistory()
+
+    @Query("DELETE FROM parcels")
+    suspend fun deleteAllParcels()
+
+    @Query("DELETE FROM rides")
+    suspend fun deleteAllRides()
 }

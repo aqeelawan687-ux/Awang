@@ -132,7 +132,8 @@ fun ReportsScreen(
                 onOpenSettings = onOpenSettings,
                 onOpenCustomerHistory = onOpenCustomerHistory,
                 isBalanceHidden = state.isBalanceHidden,
-                onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() },
+                onResetApp = { viewModel.resetAppData() }
             )
         }
 

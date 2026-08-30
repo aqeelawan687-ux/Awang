@@ -127,4 +127,12 @@ class RiderRepository(private val dao: RiderDao) {
     suspend fun deleteAllCustomerHistory() {
         dao.deleteAllCustomerHistory()
     }
+
+    suspend fun resetAppData() {
+        dao.deleteAllDebtors()
+        dao.deleteAllPaymentHistory()
+        dao.deleteAllParcels()
+        dao.deleteAllRides()
+        dao.deleteAllCustomerHistory()
+    }
 }

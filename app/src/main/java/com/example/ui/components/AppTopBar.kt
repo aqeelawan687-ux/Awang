@@ -15,9 +15,13 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,11 +42,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.AccentRed
 import com.example.ui.theme.EmeraldGreenPrimary
 
 /**
  * Shared consistent Three-Dot Menu (⋮) for every screen across the app.
- * Provides direct access to Central Settings, Customer History, and Privacy controls.
+ * Provides direct access to Central Settings, Customer History, Privacy controls, and Safe App Reset.
  */
 @Composable
 fun AppHeaderDropdownMenu(
@@ -49,9 +55,50 @@ fun AppHeaderDropdownMenu(
     onOpenCustomerHistory: (() -> Unit)? = null,
     isBalanceHidden: Boolean = false,
     onToggleBalanceVisibility: (() -> Unit)? = null,
+    onResetApp: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showResetConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Reset App Data?",
+                    fontWeight = FontWeight.Bold,
+                    color = AccentRed
+                )
+            },
+            text = {
+                Text(
+                    text = "Kya aap waqai app ka data reset karna chahte hain? Tamam customers, rides, saman aur hisab kitab delete ho jayega.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetConfirmDialog = false
+                        onResetApp?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    modifier = Modifier.testTag("btn_confirm_reset_app")
+                ) {
+                    Text("Reset App", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showResetConfirmDialog = false },
+                    modifier = Modifier.testTag("btn_cancel_reset_app")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(modifier = modifier) {
         IconButton(
@@ -162,6 +209,42 @@ fun AppHeaderDropdownMenu(
                     modifier = Modifier.testTag("menu_item_toggle_balance")
                 )
             }
+
+            // 4. App Reset Option
+            if (onResetApp != null) {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.RestartAlt,
+                                contentDescription = null,
+                                tint = AccentRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "App Reset / ایپ ری سیٹ",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = AccentRed
+                                )
+                                Text(
+                                    text = "Reset local data safely",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        showResetConfirmDialog = true
+                    },
+                    modifier = Modifier.testTag("menu_item_app_reset")
+                )
+            }
         }
     }
 }
@@ -179,6 +262,7 @@ fun AppTopBar(
     onOpenCustomerHistory: (() -> Unit)? = null,
     isBalanceHidden: Boolean = false,
     onToggleBalanceVisibility: (() -> Unit)? = null,
+    onResetApp: (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -234,7 +318,8 @@ fun AppTopBar(
                 onOpenSettings = onOpenSettings,
                 onOpenCustomerHistory = onOpenCustomerHistory,
                 isBalanceHidden = isBalanceHidden,
-                onToggleBalanceVisibility = onToggleBalanceVisibility
+                onToggleBalanceVisibility = onToggleBalanceVisibility,
+                onResetApp = onResetApp
             )
         }
     }

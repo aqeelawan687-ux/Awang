@@ -235,7 +235,11 @@ fun CustomerHistoryScreen(
                             onOpenSettings = onOpenSettings,
                             onOpenCustomerHistory = { /* already here */ },
                             isBalanceHidden = state.isBalanceHidden,
-                            onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                            onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() },
+                            onResetApp = {
+                                viewModel.resetAppData()
+                                onBackClick()
+                            }
                         )
                     }
                 },

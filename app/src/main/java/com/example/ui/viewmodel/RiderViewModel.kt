@@ -325,6 +325,26 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addCustomerBakaya(debtor: DebtorEntity, amount: Double, note: String) {
+        viewModelScope.launch {
+            if (amount <= 0.0) return@launch
+            val updated = debtor.copy(
+                totalDebt = debtor.totalDebt + amount,
+                lastUpdatedTimestamp = System.currentTimeMillis(),
+                note = if (debtor.note.isBlank()) note.trim() else if (note.isNotBlank()) "${debtor.note} | ${note.trim()}" else debtor.note
+            )
+            repository.updateDebtor(updated)
+            repository.addCustomerHistory(
+                customerName = debtor.name,
+                phoneNumber = debtor.phoneNumber,
+                actionType = "Account",
+                title = "Bakaya Added (+Rs. ${amount.toInt()})",
+                details = "Added: Rs. ${amount.toInt()} | New Total Due: Rs. ${updated.totalDebt.toInt()}${if (note.isNotBlank()) " | Note: $note" else ""}",
+                amount = amount
+            )
+        }
+    }
+
     fun deleteDebtor(debtor: DebtorEntity) {
         viewModelScope.launch {
             repository.deleteDebtor(debtor)
@@ -794,6 +814,12 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendDebtorReminder(context: Context, debtor: DebtorEntity) {
         ShareUtil.sendWhatsAppReminderToDebtor(context, debtor)
+    }
+
+    fun resetAppData() {
+        viewModelScope.launch {
+            repository.resetAppData()
+        }
     }
 }
 

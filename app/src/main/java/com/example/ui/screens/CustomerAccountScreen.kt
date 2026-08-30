@@ -65,6 +65,7 @@ import com.example.data.entity.DebtorEntity
 import com.example.data.entity.ParcelEntity
 import com.example.data.entity.PaymentHistoryEntity
 import com.example.data.entity.RideEntity
+import com.example.ui.components.AddBakayaDialog
 import com.example.ui.components.AddParcelDialog
 import com.example.ui.components.AddRideDialog
 import com.example.ui.components.AppHeaderDropdownMenu
@@ -74,6 +75,7 @@ import com.example.ui.components.EditParcelDialog
 import com.example.ui.components.EditPaymentDialog
 import com.example.ui.components.EditRideDialog
 import com.example.ui.components.RecordPaymentDialog
+import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.AccentRed
 import com.example.ui.theme.EmeraldGreenPrimary
@@ -98,6 +100,7 @@ fun CustomerAccountScreen(
     onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val currentDebtor = state.debtors.find { it.id == debtor.id } ?: debtor
     val context = LocalContext.current
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -105,6 +108,7 @@ fun CustomerAccountScreen(
     var showEditCustomerDialog by remember { mutableStateOf(false) }
     var showAddRideDialog by remember { mutableStateOf(false) }
     var showAddParcelDialog by remember { mutableStateOf(false) }
+    var showAddBakayaDialog by remember { mutableStateOf(false) }
     var showAddPaymentDialog by remember { mutableStateOf(false) }
     var showPdfFilterDialog by remember { mutableStateOf(false) }
     var showDeleteCustomerConfirm by remember { mutableStateOf(false) }
@@ -120,15 +124,15 @@ fun CustomerAccountScreen(
 
     // Filter customer transactions with strict customer isolation
     val customerRides = state.rides.filter {
-        it.debtorId == debtor.id || (it.debtorId == null && it.note.contains(debtor.name, ignoreCase = true))
+        it.debtorId == currentDebtor.id || (it.debtorId == null && it.note.contains(currentDebtor.name, ignoreCase = true))
     }
 
     val customerParcels = state.parcels.filter {
-        it.debtorId == debtor.id || (it.debtorId == null && it.recipientName.equals(debtor.name, ignoreCase = true))
+        it.debtorId == currentDebtor.id || (it.debtorId == null && it.recipientName.equals(currentDebtor.name, ignoreCase = true))
     }
 
     val customerPayments = state.paymentHistory.filter {
-        it.debtorId == debtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(debtor.name, ignoreCase = true))
+        it.debtorId == currentDebtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(currentDebtor.name, ignoreCase = true))
     }
 
     // Customer Financial Totals
@@ -163,14 +167,11 @@ fun CustomerAccountScreen(
     val rideBakaya = (totalRidePayment - ridePaid).coerceAtLeast(0.0)
     val parcelBakaya = (totalSamanPayment - parcelPaid).coerceAtLeast(0.0)
 
-    // Grand Total logic: sum of transactions or legacy debt amount
-    val grandTotal = if (customerRides.isNotEmpty() || customerParcels.isNotEmpty()) {
-        totalRidePayment + totalSamanPayment
-    } else {
-        debtor.totalDebt + totalPaid
-    }
-
-    val baqaya = (grandTotal - totalPaid).coerceAtLeast(0.0)
+    // Authoritative calculations:
+    // currentDebtor.totalDebt represents the authoritative remaining balance.
+    val baqaya = currentDebtor.totalDebt
+    val grandTotal = (currentDebtor.totalDebt + totalPaid).coerceAtLeast(totalRidePayment + totalSamanPayment)
+    val previousOrExtraBakaya = (grandTotal - (totalRidePayment + totalSamanPayment)).coerceAtLeast(0.0)
     val isFullPaid = baqaya <= 0
 
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US) }
@@ -239,7 +240,11 @@ fun CustomerAccountScreen(
                         onOpenSettings = onOpenSettings,
                         onOpenCustomerHistory = onOpenCustomerHistory,
                         isBalanceHidden = state.isBalanceHidden,
-                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() }
+                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() },
+                        onResetApp = {
+                            viewModel.resetAppData()
+                            onBackClick()
+                        }
                     )
                 }
             }
@@ -279,14 +284,14 @@ fun CustomerAccountScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = debtor.name,
+                                    text = currentDebtor.name,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                if (debtor.phoneNumber.isNotBlank()) {
+                                if (currentDebtor.phoneNumber.isNotBlank()) {
                                     Text(
-                                        text = "📞 ${debtor.phoneNumber}",
+                                        text = "📞 ${currentDebtor.phoneNumber}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color.Gray
                                     )
@@ -388,6 +393,22 @@ fun CustomerAccountScreen(
                         }
                     }
 
+                    if (previousOrExtraBakaya > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Previous / Extra Bakaya:", fontSize = 10.5.sp, color = Color.Gray)
+                            Text(
+                                text = "Rs. ${previousOrExtraBakaya.toInt()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = AccentAmber
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
                     HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
                     Spacer(modifier = Modifier.height(10.dp))
@@ -442,7 +463,9 @@ fun CustomerAccountScreen(
                     Button(
                         onClick = { showAddRideDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreenPrimary),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_customer_add_ride")
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -452,7 +475,9 @@ fun CustomerAccountScreen(
                     Button(
                         onClick = { showAddParcelDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_customer_add_parcel")
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -465,24 +490,40 @@ fun CustomerAccountScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
+                        onClick = { showAddBakayaDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentAmber),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_customer_add_bakaya")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("+ Bakaya", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
                         onClick = { showAddPaymentDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_customer_add_payment")
                     ) {
                         Icon(Icons.Default.AttachMoney, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Payment", fontSize = 12.sp)
+                        Text("Add Payment", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
+                }
 
-                    OutlinedButton(
-                        onClick = { showPdfFilterDialog = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldGreenPrimary),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("PDF Report", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
+                OutlinedButton(
+                    onClick = { showPdfFilterDialog = true },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldGreenPrimary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("btn_customer_pdf_report")
+                ) {
+                    Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("PDF Report / رپورٹ شیئر کریں", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(modifier = Modifier.height(18.dp))
@@ -796,10 +837,10 @@ fun CustomerAccountScreen(
     // 1. Edit Customer Dialog
     if (showEditCustomerDialog) {
         EditDebtorDialog(
-            debtor = debtor,
+            debtor = currentDebtor,
             onDismiss = { showEditCustomerDialog = false },
             onConfirm = { name, phone, note ->
-                val updated = debtor.copy(
+                val updated = currentDebtor.copy(
                     name = name.trim(),
                     phoneNumber = phone.trim(),
                     note = note.trim(),
@@ -811,12 +852,24 @@ fun CustomerAccountScreen(
         )
     }
 
+    // 1B. Add Bakaya Dialog
+    if (showAddBakayaDialog) {
+        AddBakayaDialog(
+            debtor = currentDebtor,
+            onDismiss = { showAddBakayaDialog = false },
+            onConfirm = { amount, note ->
+                viewModel.addCustomerBakaya(currentDebtor, amount, note)
+                showAddBakayaDialog = false
+            }
+        )
+    }
+
     // 2. Add Ride Bound to Customer Dialog
     if (showAddRideDialog) {
         AddRideDialog(
             onDismiss = { showAddRideDialog = false },
             onConfirm = { from, to, distance, fare, time, note, _, imageUri ->
-                viewModel.addRideForDebtor(debtor, from, to, distance, fare, time, note, imageUri)
+                viewModel.addRideForDebtor(currentDebtor, from, to, distance, fare, time, note, imageUri)
                 showAddRideDialog = false
             }
         )
@@ -828,7 +881,7 @@ fun CustomerAccountScreen(
             onDismiss = { showAddParcelDialog = false },
             onConfirm = { shop, recipient, address, details, price, delivery, samanName, imageUri ->
                 viewModel.addParcelForDebtor(
-                    debtor = debtor,
+                    debtor = currentDebtor,
                     shopName = shop,
                     recipientAddress = address,
                     itemDetails = details,
@@ -845,13 +898,13 @@ fun CustomerAccountScreen(
     // 4. Record Payment Bound to Customer Dialog
     if (showAddPaymentDialog) {
         RecordPaymentDialog(
-            debtor = debtor,
+            debtor = currentDebtor,
             totalDue = grandTotal,
             alreadyPaid = totalPaid,
             currentBakaya = baqaya,
             onDismiss = { showAddPaymentDialog = false },
             onConfirm = { amount, paymentType, note ->
-                viewModel.recordDebtPayment(debtor, amount, note, paymentType)
+                viewModel.recordDebtPayment(currentDebtor, amount, note, paymentType)
                 showAddPaymentDialog = false
             }
         )
@@ -860,8 +913,8 @@ fun CustomerAccountScreen(
     // 5. PDF Filter & Edit Dialog
     if (showPdfFilterDialog) {
         CustomerPdfFilterDialog(
-            customerName = debtor.name,
-            customerPhone = debtor.phoneNumber,
+            customerName = currentDebtor.name,
+            customerPhone = currentDebtor.phoneNumber,
             onDismiss = { showPdfFilterDialog = false },
             onConfirm = { filterType, customTitle, customNote, includeRide, includeSaman, includePaymentHistory, hideSamanTotal, hideRideCharges, customCustomerName, customPhoneNumber ->
                 showPdfFilterDialog = false
@@ -871,7 +924,7 @@ fun CustomerAccountScreen(
 
                 val pdfFile = PdfReportGenerator.generateCustomerPdfReport(
                     context = context,
-                    debtor = debtor,
+                    debtor = currentDebtor,
                     rides = filteredRides,
                     parcels = filteredParcels,
                     payments = filteredPayments,
@@ -887,7 +940,7 @@ fun CustomerAccountScreen(
                     customPhoneNumber = customPhoneNumber,
                     isPdfTotalOnly = state.isPdfTotalOnly
                 )
-                ShareUtil.shareCustomerPdfReport(context, pdfFile, customCustomerName.ifBlank { debtor.name })
+                ShareUtil.shareCustomerPdfReport(context, pdfFile, customCustomerName.ifBlank { currentDebtor.name })
             }
         )
     }
@@ -897,11 +950,11 @@ fun CustomerAccountScreen(
         AlertDialog(
             onDismissRequest = { showDeleteCustomerConfirm = false },
             title = { Text("Customer Delete Karein?") },
-            text = { Text("${debtor.name} ka account aur tamam hisab record delete ho jaye ga.") },
+            text = { Text("${currentDebtor.name} ka account aur tamam hisab record delete ho jaye ga.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteDebtor(debtor)
+                        viewModel.deleteDebtor(currentDebtor)
                         showDeleteCustomerConfirm = false
                         onBackClick()
                     },
