@@ -100,4 +100,74 @@ class PaymentBakayaCalculationTest {
         val parsedDecimal = decimalInput.toDoubleOrNull() ?: 0.0
         assertEquals(350.50, parsedDecimal, 0.01)
     }
+
+    @Test
+    fun test1_newCustomerTotalQarza() {
+        val totalQarza = 1500.0
+        val paid = 0.0
+        val debtor = DebtorEntity(name = "Zahid", totalDebt = totalQarza)
+        val customerAccountRemaining = debtor.totalDebt - paid
+        val dashboardBalance = debtor.totalDebt
+        val grandTotal = (debtor.totalDebt + paid).coerceAtLeast(0.0)
+
+        assertEquals(1500.0, customerAccountRemaining, 0.01)
+        assertEquals(1500.0, dashboardBalance, 0.01)
+        assertEquals(1500.0, grandTotal, 0.01)
+    }
+
+    @Test
+    fun test2_bakayaAddition() {
+        var debtor = DebtorEntity(name = "Ali", totalDebt = 0.0)
+        val addedBakaya = 1500.0
+        debtor = debtor.copy(totalDebt = debtor.totalDebt + addedBakaya)
+
+        val customerAccount = debtor.totalDebt
+        val dashboard = debtor.totalDebt
+        val pdfTotal = debtor.totalDebt
+
+        assertEquals(1500.0, customerAccount, 0.01)
+        assertEquals(1500.0, dashboard, 0.01)
+        assertEquals(1500.0, pdfTotal, 0.01)
+    }
+
+    @Test
+    fun test3_combinedTotal() {
+        val bakaya = 1500.0
+        val samaan = 4200.0
+        val duty = 400.0
+        val totalSaman = samaan + duty // 4600.0
+        val paid = 1000.0
+
+        val totalDebt = (bakaya + totalSaman - paid) // 5100.0
+        val debtor = DebtorEntity(name = "Kamran", totalDebt = totalDebt)
+
+        val grandTotal = (debtor.totalDebt + paid).coerceAtLeast(totalSaman)
+        val remaining = (grandTotal - paid).coerceAtLeast(0.0)
+
+        assertEquals(6100.0, grandTotal, 0.01)
+        assertEquals(5100.0, remaining, 0.01)
+        assertEquals(5100.0, debtor.totalDebt, 0.01)
+    }
+
+    @Test
+    fun test4_editBakaya() {
+        var debtor = DebtorEntity(name = "Usman", totalDebt = 1500.0)
+        val oldBakaya = 1500.0
+        val newBakaya = 1000.0
+        val diff = newBakaya - oldBakaya // -500.0
+
+        debtor = debtor.copy(totalDebt = (debtor.totalDebt + diff).coerceAtLeast(0.0))
+
+        assertEquals(1000.0, debtor.totalDebt, 0.01)
+    }
+
+    @Test
+    fun test5_deleteBakaya() {
+        var debtor = DebtorEntity(name = "Tariq", totalDebt = 1500.0)
+        val bakayaToDelete = 1500.0
+
+        debtor = debtor.copy(totalDebt = (debtor.totalDebt - bakayaToDelete).coerceAtLeast(0.0))
+
+        assertEquals(0.0, debtor.totalDebt, 0.01)
+    }
 }

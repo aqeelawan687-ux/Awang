@@ -108,6 +108,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.data.entity.CustomerHistoryEntity
 import com.example.data.entity.DebtorEntity
 import com.example.data.entity.PaymentHistoryEntity
 import com.example.util.DistanceCalculator
@@ -354,6 +355,146 @@ fun AddBakayaDialog(
                 modifier = Modifier.testTag("confirm_add_bakaya_button")
             ) {
                 Text("Add Bakaya / شامل کریں")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+// 1C. EDIT BAKAYA / PREVIOUS OUTSTANDING AMOUNT DIALOG
+@Composable
+fun EditBakayaDialog(
+    customerName: String,
+    currentTotalDebt: Double,
+    bakaya: CustomerHistoryEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (amount: Double, note: String) -> Unit
+) {
+    var amountText by remember { mutableStateOf(bakaya.amount.toInt().toString()) }
+    var note by remember { mutableStateOf(bakaya.details) }
+    var isError by remember { mutableStateOf(false) }
+
+    val oldAmount = bakaya.amount
+    val enteredAmount = amountText.toDoubleOrNull() ?: 0.0
+    val diff = enteredAmount - oldAmount
+    val projectedBalance = (currentTotalDebt + diff).coerceAtLeast(0.0)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("dialog_edit_bakaya"),
+        title = {
+            Text(
+                text = "Edit Bakaya / بقایا تبدیل کریں",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Customer: $customerName",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Current Total Debt: Rs. ${currentTotalDebt.toInt()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Text(
+                    text = "Old Bakaya Entry: Rs. ${oldAmount.toInt()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it; isError = false },
+                    label = { Text("New Bakaya Amount (Rs) / بقایا رقم") },
+                    placeholder = { Text("e.g. 1500") },
+                    leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_bakaya_amount_input"),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Note / تفصیل (e.g. Pichla hisab)") },
+                    placeholder = { Text("e.g. Pichla hisab") },
+                    leadingIcon = { Icon(Icons.Default.Note, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_bakaya_note_input")
+                )
+
+                if (enteredAmount > 0) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (diff <= 0) MintContainer else SoftRedBg
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "Balance Adjustment: ${if (diff >= 0) "+Rs. ${diff.toInt()}" else "-Rs. ${(-diff).toInt()}"}",
+                                fontWeight = FontWeight.Bold,
+                                color = if (diff <= 0) EmeraldGreenPrimary else AccentRed,
+                                fontSize = 11.5.sp
+                            )
+                            Text(
+                                text = "New Authoritative Balance: Rs. ${projectedBalance.toInt()}",
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (projectedBalance <= 0) EmeraldGreenPrimary else AccentRed,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                if (isError) {
+                    Text(
+                        text = "Durust raqam (Valid amount) darj karein",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val entered = amountText.toDoubleOrNull() ?: 0.0
+                    if (entered > 0.0) {
+                        onConfirm(entered, note.trim())
+                    } else {
+                        isError = true
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                modifier = Modifier.testTag("confirm_edit_bakaya_button")
+            ) {
+                Text("Update Bakaya / تبدیل کریں")
             }
         },
         dismissButton = {

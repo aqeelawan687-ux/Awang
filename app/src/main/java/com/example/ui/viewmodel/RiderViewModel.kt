@@ -283,14 +283,25 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     lastUpdatedTimestamp = System.currentTimeMillis()
                 )
                 repository.updateDebtor(updated)
-                repository.addCustomerHistory(
-                    customerName = trimmedName,
-                    phoneNumber = phone.ifBlank { existingDebtor.phoneNumber },
-                    actionType = "Account",
-                    title = "Updated Customer Account (+Rs. ${totalDebt.toInt()})",
-                    details = "Total Due: Rs. ${updated.totalDebt.toInt()} | Note: ${note.ifBlank { "Account update" }}",
-                    amount = totalDebt
-                )
+                if (totalDebt > 0) {
+                    repository.addCustomerHistory(
+                        customerName = trimmedName,
+                        phoneNumber = phone.ifBlank { existingDebtor.phoneNumber },
+                        actionType = "Bakaya",
+                        title = "Bakaya Added (+Rs. ${totalDebt.toInt()})",
+                        details = if (note.isNotBlank()) note.trim() else "Pichla Bakaya / Previous Outstanding",
+                        amount = totalDebt
+                    )
+                } else {
+                    repository.addCustomerHistory(
+                        customerName = trimmedName,
+                        phoneNumber = phone.ifBlank { existingDebtor.phoneNumber },
+                        actionType = "Account",
+                        title = "Customer Info Updated",
+                        details = "Note: ${note.ifBlank { "Account update" }}",
+                        amount = 0.0
+                    )
+                }
             } else {
                 val debtor = DebtorEntity(
                     name = trimmedName,
@@ -299,14 +310,25 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     note = note.trim()
                 )
                 repository.addDebtor(debtor)
-                repository.addCustomerHistory(
-                    customerName = trimmedName,
-                    phoneNumber = phone.trim(),
-                    actionType = "Account",
-                    title = "New Customer Created (Due: Rs. ${totalDebt.toInt()})",
-                    details = "Initial Due: Rs. ${totalDebt.toInt()}${if (note.isNotBlank()) " | $note" else ""}",
-                    amount = totalDebt
-                )
+                if (totalDebt > 0) {
+                    repository.addCustomerHistory(
+                        customerName = trimmedName,
+                        phoneNumber = phone.trim(),
+                        actionType = "Bakaya",
+                        title = "Initial Bakaya / Qarza (Rs. ${totalDebt.toInt()})",
+                        details = if (note.isNotBlank()) "Initial Qarza / Note: $note" else "Initial Qarza / Previous Balance: Rs. ${totalDebt.toInt()}",
+                        amount = totalDebt
+                    )
+                } else {
+                    repository.addCustomerHistory(
+                        customerName = trimmedName,
+                        phoneNumber = phone.trim(),
+                        actionType = "Account",
+                        title = "New Customer Created",
+                        details = "Initial Due: Rs. 0${if (note.isNotBlank()) " | $note" else ""}",
+                        amount = 0.0
+                    )
+                }
             }
         }
     }
@@ -337,11 +359,49 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             repository.addCustomerHistory(
                 customerName = debtor.name,
                 phoneNumber = debtor.phoneNumber,
-                actionType = "Account",
+                actionType = "Bakaya",
                 title = "Bakaya Added (+Rs. ${amount.toInt()})",
-                details = "Added: Rs. ${amount.toInt()} | New Total Due: Rs. ${updated.totalDebt.toInt()}${if (note.isNotBlank()) " | Note: $note" else ""}",
+                details = if (note.isNotBlank()) note.trim() else "Pichla Bakaya / Previous Outstanding",
                 amount = amount
             )
+        }
+    }
+
+    fun updateCustomerBakaya(bakayaHistory: CustomerHistoryEntity, newAmount: Double, newNote: String) {
+        viewModelScope.launch {
+            if (newAmount <= 0.0) return@launch
+            val oldAmount = bakayaHistory.amount
+            val diff = newAmount - oldAmount
+            val updatedHistory = bakayaHistory.copy(
+                amount = newAmount,
+                title = "Bakaya (Rs. ${newAmount.toInt()})",
+                details = if (newNote.isNotBlank()) newNote.trim() else "Bakaya updated"
+            )
+            repository.updateCustomerHistory(updatedHistory)
+            val debtor = repository.allDebtors.first().find { it.name.equals(bakayaHistory.customerName, ignoreCase = true) }
+            if (debtor != null) {
+                val newDebt = (debtor.totalDebt + diff).coerceAtLeast(0.0)
+                val updatedDebtor = debtor.copy(
+                    totalDebt = newDebt,
+                    lastUpdatedTimestamp = System.currentTimeMillis()
+                )
+                repository.updateDebtor(updatedDebtor)
+            }
+        }
+    }
+
+    fun deleteCustomerBakaya(bakayaHistory: CustomerHistoryEntity) {
+        viewModelScope.launch {
+            repository.deleteCustomerHistory(bakayaHistory)
+            val debtor = repository.allDebtors.first().find { it.name.equals(bakayaHistory.customerName, ignoreCase = true) }
+            if (debtor != null) {
+                val newDebt = (debtor.totalDebt - bakayaHistory.amount).coerceAtLeast(0.0)
+                val updatedDebtor = debtor.copy(
+                    totalDebt = newDebt,
+                    lastUpdatedTimestamp = System.currentTimeMillis()
+                )
+                repository.updateDebtor(updatedDebtor)
+            }
         }
     }
 
@@ -744,17 +804,49 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteCustomerHistory(history: CustomerHistoryEntity) {
         viewModelScope.launch {
             repository.deleteCustomerHistory(history)
+            if (history.actionType.equals("Bakaya", ignoreCase = true) && history.amount > 0) {
+                val debtor = repository.allDebtors.first().find { it.name.equals(history.customerName, ignoreCase = true) }
+                if (debtor != null) {
+                    val newDebt = (debtor.totalDebt - history.amount).coerceAtLeast(0.0)
+                    val updatedDebtor = debtor.copy(
+                        totalDebt = newDebt,
+                        lastUpdatedTimestamp = System.currentTimeMillis()
+                    )
+                    repository.updateDebtor(updatedDebtor)
+                }
+            }
         }
     }
 
     fun deleteCustomerHistoryById(id: Long) {
         viewModelScope.launch {
-            repository.deleteCustomerHistoryById(id)
+            val allHistory = repository.allCustomerHistory.first()
+            val item = allHistory.find { it.id == id }
+            if (item != null) {
+                deleteCustomerHistory(item)
+            } else {
+                repository.deleteCustomerHistoryById(id)
+            }
         }
     }
 
     fun deleteCustomerHistoryBatch(ids: List<Long>) {
         viewModelScope.launch {
+            val allHistory = repository.allCustomerHistory.first()
+            val itemsToDelete = allHistory.filter { it.id in ids }
+            for (item in itemsToDelete) {
+                if (item.actionType.equals("Bakaya", ignoreCase = true) && item.amount > 0) {
+                    val debtor = repository.allDebtors.first().find { it.name.equals(item.customerName, ignoreCase = true) }
+                    if (debtor != null) {
+                        val newDebt = (debtor.totalDebt - item.amount).coerceAtLeast(0.0)
+                        val updatedDebtor = debtor.copy(
+                            totalDebt = newDebt,
+                            lastUpdatedTimestamp = System.currentTimeMillis()
+                        )
+                        repository.updateDebtor(updatedDebtor)
+                    }
+                }
+            }
             repository.deleteCustomerHistoryByIds(ids)
         }
     }

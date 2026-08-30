@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Delete
@@ -61,11 +62,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.entity.CustomerHistoryEntity
 import com.example.data.entity.DebtorEntity
 import com.example.data.entity.ParcelEntity
 import com.example.data.entity.PaymentHistoryEntity
 import com.example.data.entity.RideEntity
 import com.example.ui.components.AddBakayaDialog
+import com.example.ui.components.EditBakayaDialog
 import com.example.ui.components.AddParcelDialog
 import com.example.ui.components.AddRideDialog
 import com.example.ui.components.AppHeaderDropdownMenu
@@ -117,10 +120,12 @@ fun CustomerAccountScreen(
     var selectedRideToEdit by remember { mutableStateOf<RideEntity?>(null) }
     var selectedParcelToEdit by remember { mutableStateOf<ParcelEntity?>(null) }
     var selectedPaymentToEdit by remember { mutableStateOf<PaymentHistoryEntity?>(null) }
+    var selectedBakayaToEdit by remember { mutableStateOf<CustomerHistoryEntity?>(null) }
 
     var selectedRideToDelete by remember { mutableStateOf<RideEntity?>(null) }
     var selectedParcelToDelete by remember { mutableStateOf<ParcelEntity?>(null) }
     var selectedPaymentToDelete by remember { mutableStateOf<PaymentHistoryEntity?>(null) }
+    var selectedBakayaToDelete by remember { mutableStateOf<CustomerHistoryEntity?>(null) }
 
     // Filter customer transactions with strict customer isolation
     val customerRides = state.rides.filter {
@@ -133,6 +138,14 @@ fun CustomerAccountScreen(
 
     val customerPayments = state.paymentHistory.filter {
         it.debtorId == currentDebtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(currentDebtor.name, ignoreCase = true))
+    }
+
+    val customerBakayas = remember(state.customerHistory, currentDebtor.name) {
+        state.customerHistory.filter { history ->
+            history.customerName.equals(currentDebtor.name, ignoreCase = true) &&
+            (history.actionType.equals("Bakaya", ignoreCase = true) ||
+             (history.actionType.equals("Account", ignoreCase = true) && (history.title.contains("Bakaya", ignoreCase = true) || history.title.contains("Qarza", ignoreCase = true) || history.title.contains("Due", ignoreCase = true))))
+        }
     }
 
     // Customer Financial Totals
@@ -529,7 +542,7 @@ fun CustomerAccountScreen(
             Spacer(modifier = Modifier.height(18.dp))
         }
 
-        // Transaction Tabs: Rides | Saman | Payment History
+        // Transaction Tabs: Rides | Saman | Payment History | Bakaya
         item {
             TabRow(
                 selectedTabIndex = selectedTabIndex,
@@ -538,17 +551,22 @@ fun CustomerAccountScreen(
                 Tab(
                     selected = selectedTabIndex == 0,
                     onClick = { selectedTabIndex = 0 },
-                    text = { Text("Rides (${customerRides.size})", fontSize = 12.sp) }
+                    text = { Text("Rides (${customerRides.size})", fontSize = 11.sp) }
                 )
                 Tab(
                     selected = selectedTabIndex == 1,
                     onClick = { selectedTabIndex = 1 },
-                    text = { Text("Saman (${customerParcels.size})", fontSize = 12.sp) }
+                    text = { Text("Saman (${customerParcels.size})", fontSize = 11.sp) }
                 )
                 Tab(
                     selected = selectedTabIndex == 2,
                     onClick = { selectedTabIndex = 2 },
-                    text = { Text("Payments (${customerPayments.size})", fontSize = 12.sp) }
+                    text = { Text("Payments (${customerPayments.size})", fontSize = 11.sp) }
+                )
+                Tab(
+                    selected = selectedTabIndex == 3,
+                    onClick = { selectedTabIndex = 3 },
+                    text = { Text("Bakaya (${customerBakayas.size})", fontSize = 11.sp, color = AccentAmber, fontWeight = FontWeight.Bold) }
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -827,6 +845,127 @@ fun CustomerAccountScreen(
                     }
                 }
             }
+
+            3 -> {
+                // Bakaya / Previous Outstanding Tab
+                if (customerBakayas.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Is customer ka koi alag bakaya record nahi hai.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = { showAddBakayaDialog = true },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentAmber)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("+ Add Bakaya / بقایا شامل کریں", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(customerBakayas) { bakayaItem ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.AccountBalanceWallet,
+                                            contentDescription = null,
+                                            tint = AccentAmber,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Bakaya / Previous Due",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = AccentAmber
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "Rs. ${bakayaItem.amount.toInt()}",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AccentAmber,
+                                        fontSize = 14.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = dateFormat.format(Date(bakayaItem.timestamp)),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.Gray
+                                        )
+                                        if (bakayaItem.details.isNotBlank()) {
+                                            Text(
+                                                text = bakayaItem.details,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row {
+                                        IconButton(
+                                            onClick = { selectedBakayaToEdit = bakayaItem },
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .testTag("btn_edit_bakaya_${bakayaItem.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit Bakaya",
+                                                tint = AccentBlue,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { selectedBakayaToDelete = bakayaItem },
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .testTag("btn_delete_bakaya_${bakayaItem.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete Bakaya",
+                                                tint = AccentRed,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item { Spacer(modifier = Modifier.height(40.dp)) }
@@ -1075,6 +1214,42 @@ fun CustomerAccountScreen(
             },
             dismissButton = {
                 TextButton(onClick = { selectedPaymentToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // 7. Edit Bakaya Dialog
+    selectedBakayaToEdit?.let { bakaya ->
+        EditBakayaDialog(
+            customerName = currentDebtor.name,
+            currentTotalDebt = currentDebtor.totalDebt,
+            bakaya = bakaya,
+            onDismiss = { selectedBakayaToEdit = null },
+            onConfirm = { newAmount, newNote ->
+                viewModel.updateCustomerBakaya(bakaya, newAmount, newNote)
+                selectedBakayaToEdit = null
+            }
+        )
+    }
+
+    // 8. Delete Bakaya Confirmation Dialog
+    selectedBakayaToDelete?.let { bakaya ->
+        AlertDialog(
+            onDismissRequest = { selectedBakayaToDelete = null },
+            title = { Text("Bakaya Entry Delete Karein?") },
+            text = { Text("Yeh Bakaya entry (Rs. ${bakaya.amount.toInt()}) delete ho jaye gi aur customer balance Rs. ${bakaya.amount.toInt()} kam ho jaye ga.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteCustomerBakaya(bakaya)
+                        selectedBakayaToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    modifier = Modifier.testTag("btn_confirm_delete_bakaya")
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedBakayaToDelete = null }) { Text("Cancel") }
             }
         )
     }

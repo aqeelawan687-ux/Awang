@@ -86,6 +86,9 @@ interface RiderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomerHistory(history: com.example.data.entity.CustomerHistoryEntity): Long
 
+    @Update
+    suspend fun updateCustomerHistory(history: com.example.data.entity.CustomerHistoryEntity)
+
     @Delete
     suspend fun deleteCustomerHistory(history: com.example.data.entity.CustomerHistoryEntity)
 

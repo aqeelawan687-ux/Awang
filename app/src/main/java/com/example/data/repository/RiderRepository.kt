@@ -110,6 +110,10 @@ class RiderRepository(private val dao: RiderDao) {
         return dao.insertCustomerHistory(entry)
     }
 
+    suspend fun updateCustomerHistory(history: com.example.data.entity.CustomerHistoryEntity) {
+        dao.updateCustomerHistory(history)
+    }
+
     suspend fun deleteCustomerHistory(history: com.example.data.entity.CustomerHistoryEntity) {
         dao.deleteCustomerHistory(history)
     }

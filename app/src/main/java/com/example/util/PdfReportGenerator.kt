@@ -343,11 +343,8 @@ object PdfReportGenerator {
         val rideTotal = effectiveRides.sumOf { it.fareAmount }
         val samanTotal = effectiveParcels.sumOf { it.itemPrice + it.deliveryCharges }
         val totalPaid = effectivePayments.sumOf { it.amountPaid }
-        val grandTotal = if (effectiveRides.isNotEmpty() || effectiveParcels.isNotEmpty()) {
-            rideTotal + samanTotal
-        } else {
-            debtor.totalDebt + totalPaid
-        }
+        val grandTotal = (debtor.totalDebt + totalPaid).coerceAtLeast(rideTotal + samanTotal)
+        val previousBakaya = (grandTotal - (rideTotal + samanTotal)).coerceAtLeast(0.0)
         val baqaya = (grandTotal - totalPaid).coerceAtLeast(0.0)
 
         val effectiveHideSaman = hideSamanTotal || isPdfTotalOnly
@@ -369,7 +366,11 @@ object PdfReportGenerator {
 
         var currentSummaryY = y + 42f
         if (!isPdfTotalOnly) {
-            val line1 = "Ride Total: ${if (effectiveHideRide) "--" else "Rs. ${rideTotal.toInt()}"}    |    Saman/Parcel Total: ${if (effectiveHideSaman) "--" else "Rs. ${samanTotal.toInt()}"}"
+            val line1 = if (previousBakaya > 0) {
+                "Ride: ${if (effectiveHideRide) "--" else "Rs. ${rideTotal.toInt()}"}  |  Saman: ${if (effectiveHideSaman) "--" else "Rs. ${samanTotal.toInt()}"}  |  Bakaya: Rs. ${previousBakaya.toInt()}"
+            } else {
+                "Ride Total: ${if (effectiveHideRide) "--" else "Rs. ${rideTotal.toInt()}"}    |    Saman/Parcel Total: ${if (effectiveHideSaman) "--" else "Rs. ${samanTotal.toInt()}"}"
+            }
             canvas.drawText(line1, 40f, currentSummaryY, paint)
             currentSummaryY += 20f
         }
