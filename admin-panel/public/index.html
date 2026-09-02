@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aqeel Rider — License Admin Panel</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo-circle">🏍️</div>
+        <h1>Aqeel Rider</h1>
+        <p class="subtitle">License Management Console</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Admin Username</label>
+          <input type="text" id="username" placeholder="e.g. admin" required value="admin">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter password" required value="admin123">
+        </div>
+        <div id="login-error" class="error-msg" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD APP -->
+  <div id="app-screen" class="app-layout" style="display:none;">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">🏍️</span>
+        <div>
+          <h2 class="brand-title">Aqeel Rider</h2>
+          <span class="brand-badge">License Server</span>
+        </div>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="licenses">
+          <span class="icon">🔑</span> Licenses
+        </button>
+        <button class="nav-item" data-tab="logs">
+          <span class="icon">📜</span> Audit Logs
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <span class="user-avatar">👤</span>
+          <span id="display-admin-name">Admin</span>
+        </div>
+        <button id="logout-btn" class="btn btn-outline-danger btn-sm">Logout</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <header class="top-bar">
+        <div>
+          <h1 id="page-title">Licenses Dashboard</h1>
+          <p class="text-muted">Manage real-time device bindings, blocks, and keys.</p>
+        </div>
+        <div class="header-actions">
+          <button id="open-generate-btn" class="btn btn-primary">
+            <span>+</span> Generate License
+          </button>
+          <button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
+        </div>
+      </header>
+
+      <!-- METRIC CARDS -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon total">📊</div>
+          <div>
+            <div class="metric-val" id="stat-total">0</div>
+            <div class="metric-lbl">Total Licenses</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon active">🟢</div>
+          <div>
+            <div class="metric-val" id="stat-active">0</div>
+            <div class="metric-lbl">Active Devices</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon unactivated">🟡</div>
+          <div>
+            <div class="metric-val" id="stat-unactivated">0</div>
+            <div class="metric-lbl">Unactivated</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon blocked">🔴</div>
+          <div>
+            <div class="metric-val" id="stat-blocked">0</div>
+            <div class="metric-lbl">Blocked</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: LICENSES -->
+      <div id="tab-licenses" class="tab-pane active">
+        <div class="table-controls">
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" id="search-input" placeholder="Search by key, customer name, device ID...">
+          </div>
+          <div class="filter-group">
+            <label>Status:</label>
+            <select id="status-filter">
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="UNACTIVATED">Unactivated</option>
+              <option value="BLOCKED">Blocked</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>License Key</th>
+                  <th>Customer Name</th>
+                  <th>Status</th>
+                  <th>Device Binding</th>
+                  <th>Device Model</th>
+                  <th>Created / Activated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="licenses-tbody">
+                <tr><td colspan="7" class="text-center">Loading licenses...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: AUDIT LOGS -->
+      <div id="tab-logs" class="tab-pane" style="display:none;">
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>License Key</th>
+                  <th>Action</th>
+                  <th>Device ID</th>
+                  <th>IP Address</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbody">
+                <tr><td colspan="6" class="text-center">Loading audit logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: GENERATE LICENSE -->
+  <div id="generate-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Generate Lifetime License</h3>
+        <button class="close-modal-btn">&times;</button>
+      </div>
+      <form id="generate-form">
+        <div class="form-group">
+          <label>Customer / Rider Name</label>
+          <input type="text" id="gen-customer" placeholder="e.g. Aqeel Awan" required>
+        </div>
+        <div class="form-group">
+          <label>Notes / City (Optional)</label>
+          <input type="text" id="gen-notes" placeholder="e.g. Rawalpindi Rider">
+        </div>
+        <div class="form-group">
+          <label>Device Limit</label>
+          <input type="number" id="gen-max-devices" value="1" min="1" max="5" disabled>
+          <small class="text-muted">Standard 1 Device Lifetime License</small>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-modal-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Generate Key</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast" style="display:none;"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

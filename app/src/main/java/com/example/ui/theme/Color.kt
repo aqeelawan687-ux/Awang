@@ -2,97 +2,26 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// 1. Blue Theme Palette (Default)
-val BluePrimary = Color(0xFF0284C7)
-val BlueSecondary = Color(0xFF0369A1)
-val BlueContainer = Color(0xFFE0F2FE)
-val BlueLightBg = Color(0xFFF0F9FF)
-val BlueDarkSurface = Color(0xFF0F172A)
-val BlueDarkCard = Color(0xFF1E293B)
+val GreenPrimary = Color(0xFF00C853)
+val GreenLight = Color(0xFF5EFC82)
+val GreenDark = Color(0xFF009624)
 
-// 2. Green Theme Palette
-val GreenPrimary = Color(0xFF0D6338)
-val GreenSecondary = Color(0xFF10B981)
-val GreenContainer = Color(0xFFDCFCE7)
-val GreenLightBg = Color(0xFFF0FDF4)
+val BluePrimary = Color(0xFF1E88E5)
+val BlueLight = Color(0xFF6AB7FF)
+val BlueDark = Color(0xFF005CB2)
 
-// 3. Purple Theme Palette
-val PurplePrimary = Color(0xFF7C3AED)
-val PurpleSecondary = Color(0xFF8B5CF6)
-val PurpleContainer = Color(0xFFF3E8FF)
-val PurpleLightBg = Color(0xFFFAF5FF)
+val Slate900 = Color(0xFF0F172A)
+val Slate800 = Color(0xFF1E293B)
+val Slate700 = Color(0xFF334155)
+val Slate600 = Color(0xFF475569)
+val Slate500 = Color(0xFF64748B)
+val Slate400 = Color(0xFF94A3B8)
+val Slate300 = Color(0xFFCBD5E1)
+val Slate200 = Color(0xFFE2E8F0)
+val Slate100 = Color(0xFFF1F5F9)
+val Slate50 = Color(0xFFF8FAFC)
 
-// 4. Orange Theme Palette
-val OrangePrimary = Color(0xFFEA580C)
-val OrangeSecondary = Color(0xFFF97316)
-val OrangeContainer = Color(0xFFFFEDD5)
-val OrangeLightBg = Color(0xFFFFF7ED)
-
-// 5. Red Theme Palette
-val RedPrimary = Color(0xFFDC2626)
-val RedSecondary = Color(0xFFEF4444)
-val RedContainer = Color(0xFFFEE2E2)
-val RedLightBg = Color(0xFFFEF2F2)
-
-// 6. Teal Theme Palette
-val TealPrimary = Color(0xFF0D9488)
-val TealSecondary = Color(0xFF14B8A6)
-val TealContainer = Color(0xFFCCFBF1)
-val TealLightBg = Color(0xFFF0FDFA)
-
-// 7. Gold Theme Palette
-val GoldPrimary = Color(0xFFD97706)
-val GoldSecondary = Color(0xFFF59E0B)
-val GoldContainer = Color(0xFFFEF3C7)
-val GoldLightBg = Color(0xFFFFFBEB)
-
-// 8. Indigo Theme Palette
-val IndigoPrimary = Color(0xFF4F46E5)
-val IndigoSecondary = Color(0xFF6366F1)
-val IndigoContainer = Color(0xFFE0E7FF)
-val IndigoLightBg = Color(0xFFEEF2FF)
-
-// 9. Rose Theme Palette
-val RosePrimary = Color(0xFFE11D48)
-val RoseSecondary = Color(0xFFF43F5E)
-val RoseContainer = Color(0xFFFFE4E6)
-val RoseLightBg = Color(0xFFFFF1F2)
-
-// 10. Emerald Theme Palette
-val EmeraldPrimary = Color(0xFF059669)
-val EmeraldSecondary = Color(0xFF10B981)
-val EmeraldContainer = Color(0xFFD1FAE5)
-val EmeraldLightBg = Color(0xFFECFDF5)
-
-// 11. Coffee Theme Palette
-val CoffeePrimary = Color(0xFF78350F)
-val CoffeeSecondary = Color(0xFF92400E)
-val CoffeeContainer = Color(0xFFFEF3C7)
-val CoffeeLightBg = Color(0xFFFFFBEB)
-
-// 12. Slate Theme Palette
-val SlatePrimary = Color(0xFF475569)
-val SlateSecondary = Color(0xFF64748B)
-val SlateContainer = Color(0xFFF1F5F9)
-val SlateLightBg = Color(0xFFF8FAFC)
-
-// Shared Legacy & Accent Colors
-val Emerald80 = Color(0xFF6EE7B7)
-val EmeraldGreen70 = Color(0xFF10B981)
-val EmeraldGreenPrimary = Color(0xFF0D6338)
-val EmeraldDarkGreen = Color(0xFF064E3B)
-val MintLightBg = Color(0xFFF0FDF4)
-val MintContainer = Color(0xFFDCFCE7)
-
-val AccentAmber = Color(0xFFD97706)
-val AccentRed = Color(0xFFDC2626)
-val SoftRedBg = Color(0xFFFEE2E2)
-val AccentBlue = Color(0xFF0284C7)
-val SoftBlueBg = Color(0xFFE0F2FE)
-
-val DarkSurface = Color(0xFF0F172A)
-val DarkBackground = Color(0xFF0B132B)
-val DarkCardBg = Color(0xFF1E293B)
-val DarkContainer = Color(0xFF064E3B)
-
-
+val AmberWarning = Color(0xFFFFB300)
+val RedError = Color(0xFFE53935)
+val PurpleAccent = Color(0xFF8E24AA)
+val CyanAccent = Color(0xFF00ACC1)

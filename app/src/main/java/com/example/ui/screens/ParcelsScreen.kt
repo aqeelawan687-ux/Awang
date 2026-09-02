@@ -1,194 +1,138 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.entity.ParcelEntity
 import com.example.ui.components.ParcelCard
-import com.example.ui.theme.AccentAmber
-import com.example.ui.theme.EmeraldGreenPrimary
 import com.example.ui.viewmodel.RiderUiState
-import com.example.ui.viewmodel.RiderViewModel
-
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.IconButton
-import com.example.ui.components.AppHeaderDropdownMenu
+import com.example.util.ShareUtil
 
 @Composable
 fun ParcelsScreen(
     state: RiderUiState,
-    viewModel: RiderViewModel,
-    onOpenAddParcel: () -> Unit,
-    onOpenCustomerHistory: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onAddParcel: () -> Unit,
+    onToggleDelivered: (ParcelEntity) -> Unit,
+    onTogglePaid: (ParcelEntity) -> Unit,
+    onEditParcel: (ParcelEntity) -> Unit,
+    onDeleteParcel: (ParcelEntity) -> Unit,
+    onSearchChange: (String) -> Unit,
+    onFilterChange: (String) -> Unit,
+    onViewCustomerLedger: (name: String, phone: String) -> Unit
 ) {
-    val samanKePaiseStr = if (state.isBalanceHidden) "Rs. ****" else "Rs. ${state.samanKePaise.toInt()}"
+    val context = LocalContext.current
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenAddParcel,
-                containerColor = AccentAmber,
-                contentColor = Color.White,
-                modifier = Modifier.testTag("fab_add_parcel")
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Parcel")
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .testTag("parcels_screen")
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
+    Box(modifier = Modifier.fillMaxSize().testTag("parcels_screen")) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Saman / Parcel Deliveries",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Saman ke Paise: $samanKePaiseStr",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = EmeraldGreenPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.toggleBalanceVisibility() }) {
-                        Icon(
-                            imageVector = if (state.isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Hide/Show Balance",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Button(
-                        onClick = onOpenAddParcel,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentAmber),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("header_add_parcel_button")
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Naya Saman", fontWeight = FontWeight.Bold)
-                    }
-
-                    AppHeaderDropdownMenu(
-                        onOpenSettings = onOpenSettings,
-                        onOpenCustomerHistory = onOpenCustomerHistory,
-                        isBalanceHidden = state.isBalanceHidden,
-                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() },
-                        onResetApp = { viewModel.resetAppData() }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Search Bar
+            // Search
             OutlinedTextField(
-                value = state.searchQueryParcels,
-                onValueChange = { viewModel.setSearchQueryParcels(it) },
-                placeholder = { Text("Dukan ya Customer ka Naam search karein...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                shape = RoundedCornerShape(14.dp),
+                value = state.searchQuery,
+                onValueChange = onSearchChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("parcel_search_bar"),
+                    .testTag("parcels_search_input"),
+                placeholder = { Text("Search sender, receiver, address...") },
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Parcels List
-            if (state.filteredParcels.isEmpty()) {
-                Card(
+            // Filters
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = state.parcelFilter == "ALL",
+                    onClick = { onFilterChange("ALL") },
+                    label = { Text("All (${state.parcels.size})") }
+                )
+                FilterChip(
+                    selected = state.parcelFilter == "PENDING",
+                    onClick = { onFilterChange("PENDING") },
+                    label = { Text("Pending") }
+                )
+                FilterChip(
+                    selected = state.parcelFilter == "DELIVERED",
+                    onClick = { onFilterChange("DELIVERED") },
+                    label = { Text("Delivered") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (state.parcels.isEmpty()) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ShoppingBag,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (state.searchQueryParcels.isBlank()) "Abhi tak koi saman delivery add nahi hui." else "Koi saman nahi mila.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                    }
+                    Text(
+                        text = "No parcels logged yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(state.filteredParcels) { parcel ->
+                    items(state.parcels, key = { it.id }) { parcel ->
                         ParcelCard(
                             parcel = parcel,
-                            onToggleDelivered = { viewModel.toggleParcelDelivered(parcel) },
-                            onTogglePaid = { viewModel.toggleParcelPaid(parcel) },
-                            onDeleteClick = { viewModel.deleteParcel(parcel) },
-                            isBalanceHidden = state.isBalanceHidden
+                            onToggleDelivered = { onToggleDelivered(parcel) },
+                            onTogglePaid = { onTogglePaid(parcel) },
+                            onEdit = { onEditParcel(parcel) },
+                            onDelete = { onDeleteParcel(parcel) },
+                            onWhatsApp = {
+                                val msg = "Assalam-o-Alaikum,\nParcel Delivery from ${parcel.senderName} to ${parcel.receiverName}.\nDelivery Address: ${parcel.deliveryAddress}\nCharges: Rs. ${parcel.deliveryCharges.toInt()}\nPaid: Rs. ${parcel.amountPaid.toInt()}\nStatus: ${if (parcel.isDelivered) "Delivered" else "In Transit"}\nAqeel Rider Services"
+                                ShareUtil.shareViaWhatsApp(context, parcel.receiverPhone.ifEmpty { parcel.senderPhone }, msg)
+                            },
+                            onViewCustomerLedger = {
+                                onViewCustomerLedger(parcel.senderName, parcel.senderPhone)
+                            }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(70.dp)) }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onAddParcel,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+                .testTag("add_parcel_fab"),
+            containerColor = MaterialTheme.colorScheme.secondary
+        ) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Parcel")
         }
     }
 }

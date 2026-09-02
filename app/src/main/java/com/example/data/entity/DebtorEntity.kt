@@ -5,11 +5,12 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "debtors")
 data class DebtorEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val name: String,
-    val phoneNumber: String,
+    val phone: String,
     val totalDebt: Double,
-    val note: String = "",
-    val createdTimestamp: Long = System.currentTimeMillis(),
-    val lastUpdatedTimestamp: Long = System.currentTimeMillis()
+    val remainingDebt: Double,
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val notes: String = ""
 )

@@ -1,300 +1,108 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.entity.DebtorEntity
-import com.example.data.entity.PaymentHistoryEntity
-import com.example.ui.components.AppHeaderDropdownMenu
-import com.example.ui.components.DebtCard
-import com.example.ui.components.EditPaymentDialog
-import com.example.ui.components.PaymentHistoryDialog
-import com.example.ui.components.RecordPaymentDialog
-import com.example.ui.theme.AccentRed
+import com.example.ui.components.DebtorCard
 import com.example.ui.viewmodel.RiderUiState
-import com.example.ui.viewmodel.RiderViewModel
+import com.example.util.ShareUtil
 
 @Composable
 fun DebtsScreen(
     state: RiderUiState,
-    viewModel: RiderViewModel,
-    onOpenAddDebtor: () -> Unit,
-    onOpenCustomerHistory: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onAddDebtor: () -> Unit,
+    onRecordPayment: (DebtorEntity) -> Unit,
+    onViewCustomerLedger: (name: String, phone: String) -> Unit,
+    onEditDebtor: (DebtorEntity) -> Unit,
+    onDeleteDebtor: (DebtorEntity) -> Unit,
+    onSearchChange: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var selectedCustomerAccount by remember { mutableStateOf<DebtorEntity?>(null) }
 
-    var selectedDebtorForPayment by remember { mutableStateOf<DebtorEntity?>(null) }
-    var selectedDebtorForHistory by remember { mutableStateOf<DebtorEntity?>(null) }
-    var selectedPaymentToEdit by remember { mutableStateOf<PaymentHistoryEntity?>(null) }
-    var historyList by remember { mutableStateOf<List<PaymentHistoryEntity>>(emptyList()) }
-    val totalHisabStr = if (state.isBalanceHidden) "Rs. ****" else "Rs. ${state.totalQarza.toInt()}"
+    Box(modifier = Modifier.fillMaxSize().testTag("debts_screen")) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-    // If a customer account is clicked, display full CustomerAccountScreen!
-    val activeCustomer = selectedCustomerAccount
-    if (activeCustomer != null) {
-        // Find latest updated version of activeCustomer from state
-        val updatedCustomer = state.debtors.find { it.id == activeCustomer.id } ?: activeCustomer
-        CustomerAccountScreen(
-            debtor = updatedCustomer,
-            state = state,
-            viewModel = viewModel,
-            onBackClick = { selectedCustomerAccount = null },
-            onOpenSettings = onOpenSettings,
-            onOpenCustomerHistory = onOpenCustomerHistory,
-            modifier = modifier
-        )
-        return
-    }
-
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenAddDebtor,
-                containerColor = AccentRed,
-                contentColor = Color.White,
-                modifier = Modifier.testTag("fab_add_debtor")
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Customer")
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .testTag("debts_screen")
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Customer Payment / کسٹمر پیمنٹ",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Total Customer Baqaya: $totalHisabStr",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = AccentRed,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.toggleBalanceVisibility() }) {
-                        Icon(
-                            imageVector = if (state.isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Hide/Show Balance",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Button(
-                        onClick = onOpenAddDebtor,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("header_add_debtor_button")
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Naya Banda", fontWeight = FontWeight.Bold)
-                    }
-
-                    AppHeaderDropdownMenu(
-                        onOpenSettings = onOpenSettings,
-                        onOpenCustomerHistory = onOpenCustomerHistory,
-                        isBalanceHidden = state.isBalanceHidden,
-                        onToggleBalanceVisibility = { viewModel.toggleBalanceVisibility() },
-                        onResetApp = { viewModel.resetAppData() }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // SEARCH BAR
+            // Search
             OutlinedTextField(
-                value = state.searchQueryDebts,
-                onValueChange = { viewModel.setSearchQueryDebts(it) },
-                placeholder = { Text("Customer ka Naam ya Phone Number...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                shape = RoundedCornerShape(14.dp),
+                value = state.searchQuery,
+                onValueChange = onSearchChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("debtor_search_bar"),
+                    .testTag("debts_search_input"),
+                placeholder = { Text("Search debtor name or phone...") },
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Debtor / Customer List
-            if (state.filteredDebtors.isEmpty()) {
-                Card(
+            if (state.debtors.isEmpty()) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.People,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (state.searchQueryDebts.isBlank()) "Koi customer add nahi hai." else "Koi customer nahi mila.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                    }
+                    Text(
+                        text = "No debtors recorded. All accounts settled!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(state.filteredDebtors) { debtor ->
-                        val (custEarnings, custRideCount) = remember(debtor.name, state.rides) {
-                            val name = debtor.name.trim().lowercase()
-                            val cRides = state.rides.filter { r ->
-                                r.debtorId == debtor.id || r.note.lowercase().contains("customer: $name") || r.note.lowercase().contains(name)
-                            }
-                            Pair(cRides.sumOf { it.fareAmount }, cRides.size)
-                        }
-
-                        DebtCard(
+                    items(state.debtors, key = { it.id }) { debtor ->
+                        DebtorCard(
                             debtor = debtor,
-                            onCardClick = {
-                                selectedCustomerAccount = debtor
+                            onRecordPayment = { onRecordPayment(debtor) },
+                            onViewCustomerLedger = {
+                                onViewCustomerLedger(debtor.name, debtor.phone)
                             },
-                            onPaymentClick = { selectedDebtorForPayment = debtor },
-                            onHistoryClick = {
-                                selectedDebtorForHistory = debtor
-                                historyList = state.paymentHistory.filter { it.debtorId == debtor.id }
+                            onWhatsApp = {
+                                val msg = "Assalam-o-Alaikum ${debtor.name},\nThis is a gentle reminder regarding outstanding payment of Rs. ${debtor.remainingDebt.toInt()}.\nTotal Bill: Rs. ${debtor.totalDebt.toInt()}\nPlease arrange payment at your earliest convenience.\nAqeel Rider Services"
+                                ShareUtil.shareViaWhatsApp(context, debtor.phone, msg)
                             },
-                            onWhatsAppReminderClick = {
-                                viewModel.sendDebtorReminder(context, debtor)
-                            },
-                            onDeleteClick = {
-                                viewModel.deleteDebtor(debtor)
-                            },
-                            isBalanceHidden = state.isBalanceHidden,
-                            customerRideEarning = custEarnings,
-                            customerRideCount = custRideCount
+                            onEdit = { onEditDebtor(debtor) },
+                            onDelete = { onDeleteDebtor(debtor) }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(70.dp)) }
                 }
             }
         }
-    }
 
-    // Payment Deduction Dialog ("Add Payment / Bakaya Payment")
-    selectedDebtorForPayment?.let { debtor ->
-        val debtorPayments = state.paymentHistory.filter { it.debtorId == debtor.id || ((it.debtorId == null || it.debtorId == 0L) && it.debtorName.equals(debtor.name, ignoreCase = true)) }
-        val debtorRides = state.rides.filter { it.debtorId == debtor.id || (it.debtorId == null && it.note.contains(debtor.name, ignoreCase = true)) }
-        val debtorParcels = state.parcels.filter { it.debtorId == debtor.id || (it.debtorId == null && it.recipientName.equals(debtor.name, ignoreCase = true)) }
-        val totalR = debtorRides.sumOf { it.fareAmount }
-        val totalP = debtorParcels.sumOf { it.itemPrice + it.deliveryCharges }
-        val paid = debtorPayments.sumOf { it.amountPaid }
-        val grand = if (debtorRides.isNotEmpty() || debtorParcels.isNotEmpty()) totalR + totalP else debtor.totalDebt + paid
-        val bakaya = (grand - paid).coerceAtLeast(0.0)
-
-        RecordPaymentDialog(
-            debtor = debtor,
-            totalDue = grand,
-            alreadyPaid = paid,
-            currentBakaya = bakaya,
-            onDismiss = { selectedDebtorForPayment = null },
-            onConfirm = { amount, paymentType, note ->
-                viewModel.recordDebtPayment(debtor, amount, note, paymentType)
-                selectedDebtorForPayment = null
-            }
-        )
-    }
-
-    // History Dialog
-    selectedDebtorForHistory?.let { debtor ->
-        val currentDebtorHistory = state.paymentHistory.filter { it.debtorId == debtor.id || it.debtorName.equals(debtor.name, ignoreCase = true) }
-        PaymentHistoryDialog(
-            debtorName = debtor.name,
-            history = currentDebtorHistory,
-            onDismiss = { selectedDebtorForHistory = null },
-            onEditPayment = { payment ->
-                selectedPaymentToEdit = payment
-            },
-            onDeletePayment = { payment ->
-                viewModel.deletePayment(payment)
-            }
-        )
-    }
-
-    selectedPaymentToEdit?.let { payment ->
-        EditPaymentDialog(
-            payment = payment,
-            onDismiss = { selectedPaymentToEdit = null },
-            onConfirm = { amount, type, note ->
-                val oldAmount = payment.amountPaid
-                val updated = payment.copy(amountPaid = amount, paymentType = type, note = note)
-                viewModel.updatePayment(updated, oldAmountPaid = oldAmount)
-                selectedPaymentToEdit = null
-            }
-        )
+        FloatingActionButton(
+            onClick = onAddDebtor,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+                .testTag("add_debtor_fab"),
+            containerColor = MaterialTheme.colorScheme.primary
+        ) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Debtor")
+        }
     }
 }
