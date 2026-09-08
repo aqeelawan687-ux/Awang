@@ -46,7 +46,7 @@ class LicenseManager(private val context: Context) {
         private const val KEY_ACTIVATED_DATE = "activated_date"
         private const val KEY_CUSTOMER_NAME = "customer_name"
         private const val KEY_SERVER_URL = "server_url"
-        const val DEFAULT_SERVER_URL = "https://rider-admin-api.local"
+        const val DEFAULT_SERVER_URL = "https://awang-production.up.railway.app"
     }
 
     init {
