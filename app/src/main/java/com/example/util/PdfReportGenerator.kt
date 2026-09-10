@@ -91,7 +91,8 @@ object PdfReportGenerator {
         canvas.drawText("Recent Rides (${rides.take(5).size} of ${rides.size})", 30f, y, sectionPaint)
         y += 18f
         for (r in rides.take(5)) {
-            val line = "${r.customerName} (${r.phone}) - ${r.pickupLocation} -> ${r.dropoffLocation} | Fare: Rs. ${r.fare.toInt()} (Paid: ${r.amountPaid.toInt()}, Bakaya: ${r.remainingBakaya.toInt()})"
+            val rDate = DateTimeUtils.formatDateTime(r.rideDate)
+            val line = "[$rDate] ${r.customerName} (${r.phone}) - ${r.pickupLocation} -> ${r.dropoffLocation} | Fare: Rs. ${r.fare.toInt()} (Paid: ${r.amountPaid.toInt()}, Bakaya: ${r.remainingBakaya.toInt()})"
             canvas.drawText(line, 30f, y, textPaint)
             y += 15f
         }
@@ -101,8 +102,9 @@ object PdfReportGenerator {
         canvas.drawText("Recent Parcels (${parcels.take(5).size} of ${parcels.size})", 30f, y, sectionPaint)
         y += 18f
         for (p in parcels.take(5)) {
+            val pDate = DateTimeUtils.formatDateTime(p.date)
             val status = if (p.isDelivered) "Delivered" else "Pending"
-            val line = "From: ${p.senderName} -> To: ${p.receiverName} (${p.deliveryAddress}) | Rs. ${p.deliveryCharges.toInt()} [$status, Paid: Rs. ${p.amountPaid.toInt()}]"
+            val line = "[$pDate] From: ${p.senderName} -> To: ${p.receiverName} (${p.deliveryAddress}) | Rs. ${p.deliveryCharges.toInt()} [$status, Paid: Rs. ${p.amountPaid.toInt()}]"
             canvas.drawText(line, 30f, y, textPaint)
             y += 15f
         }
@@ -187,9 +189,8 @@ object PdfReportGenerator {
         canvas.drawText("Transaction & Ledger History:", 30f, y, boldPaint)
         y += 20f
 
-        val itemDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         for (item in history.take(20)) {
-            val dateStr = itemDateFormat.format(Date(item.timestamp))
+            val dateStr = DateTimeUtils.formatDateTime(item.timestamp)
             val line = "[$dateStr] [${item.activityType}] ${item.details}"
             canvas.drawText(line, 30f, y, textPaint)
             y += 16f

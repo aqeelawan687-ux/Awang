@@ -53,6 +53,7 @@ import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.BluePrimary
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.RedError
+import com.example.util.DateTimeUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -65,8 +66,7 @@ fun RideCard(
     onWhatsApp: () -> Unit,
     onViewCustomerLedger: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-    val dateStr = dateFormat.format(Date(ride.rideDate))
+    val dateStr = DateTimeUtils.formatDateTime(ride.rideDate)
 
     Card(
         modifier = Modifier
@@ -219,8 +219,7 @@ fun ParcelCard(
     onWhatsApp: () -> Unit,
     onViewCustomerLedger: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-    val dateStr = dateFormat.format(Date(parcel.date))
+    val dateStr = DateTimeUtils.formatDateTime(parcel.date)
 
     Card(
         modifier = Modifier
@@ -362,6 +361,14 @@ fun ParcelCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = dateStr,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -453,7 +460,14 @@ fun DebtorCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Updated: ${DateTimeUtils.formatDateTime(debtor.lastUpdated)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Actions Row
             Row(

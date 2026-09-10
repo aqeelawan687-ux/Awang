@@ -120,6 +120,12 @@ interface RiderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomerHistory(history: CustomerHistoryEntity): Long
 
+    @Update
+    suspend fun updateCustomerHistory(history: CustomerHistoryEntity)
+
+    @Query("SELECT * FROM customer_history WHERE referenceId = :referenceId AND activityType = :activityType LIMIT 1")
+    suspend fun getCustomerHistoryByReference(referenceId: Long, activityType: String): CustomerHistoryEntity?
+
     @Delete
     suspend fun deleteCustomerHistory(history: CustomerHistoryEntity)
 

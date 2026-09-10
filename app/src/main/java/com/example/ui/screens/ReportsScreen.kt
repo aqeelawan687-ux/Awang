@@ -88,9 +88,9 @@ fun ReportsScreen(
                     onClick = {
                         val file = PdfReportGenerator.generateFullReport(
                             context = context,
-                            rides = state.rides,
-                            parcels = state.parcels,
-                            debtors = state.debtors,
+                            rides = state.allRides,
+                            parcels = state.allParcels,
+                            debtors = state.allDebtors,
                             payments = state.payments
                         )
                         ShareUtil.sharePdf(context, file)

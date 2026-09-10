@@ -49,11 +49,9 @@ import com.example.data.entity.CustomerHistoryEntity
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.RedError
 import com.example.ui.viewmodel.RiderUiState
+import com.example.util.DateTimeUtils
 import com.example.util.PdfReportGenerator
 import com.example.util.ShareUtil
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +65,6 @@ fun CustomerAccountScreen(
     onDeleteHistoryItem: (CustomerHistoryEntity) -> Unit
 ) {
     val context = LocalContext.current
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
 
     val debtor = state.debtors.find {
         it.name.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
@@ -222,7 +219,7 @@ fun CustomerAccountScreen(
                                 Text(text = item.details, style = MaterialTheme.typography.bodyMedium)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = dateFormat.format(Date(item.timestamp)),
+                                    text = DateTimeUtils.formatDateTime(item.timestamp),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

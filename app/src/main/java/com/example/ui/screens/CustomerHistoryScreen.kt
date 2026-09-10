@@ -37,9 +37,7 @@ import com.example.ui.theme.BluePrimary
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.RedError
 import com.example.ui.viewmodel.RiderUiState
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.util.DateTimeUtils
 
 @Composable
 fun CustomerHistoryScreen(
@@ -48,8 +46,6 @@ fun CustomerHistoryScreen(
     onDeleteHistoryItem: (CustomerHistoryEntity) -> Unit,
     onSearchChange: (String) -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-
     val filteredHistory = state.customerHistory.filter { item ->
         val q = state.searchQuery.trim().lowercase()
         q.isEmpty() || item.customerName.lowercase().contains(q) || item.phone.contains(q) || item.details.lowercase().contains(q)
@@ -154,7 +150,7 @@ fun CustomerHistoryScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = dateFormat.format(Date(item.timestamp)),
+                                        text = DateTimeUtils.formatDateTime(item.timestamp),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

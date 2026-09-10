@@ -24,6 +24,9 @@ data class RiderUiState(
     val debtors: List<DebtorEntity> = emptyList(),
     val payments: List<PaymentHistoryEntity> = emptyList(),
     val customerHistory: List<CustomerHistoryEntity> = emptyList(),
+    val allRides: List<RideEntity> = emptyList(),
+    val allParcels: List<ParcelEntity> = emptyList(),
+    val allDebtors: List<DebtorEntity> = emptyList(),
     val searchQuery: String = "",
     val rideFilter: String = "ALL", // ALL, TODAY, UNPAID
     val parcelFilter: String = "ALL", // ALL, PENDING, DELIVERED
@@ -143,6 +146,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             debtors = filteredDebtors,
             payments = db.payments,
             customerHistory = db.customerHistory,
+            allRides = db.rides,
+            allParcels = db.parcels,
+            allDebtors = db.debtors,
             searchQuery = search.query,
             rideFilter = search.rideFilter,
             parcelFilter = search.parcelFilter,

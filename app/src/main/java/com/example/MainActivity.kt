@@ -355,6 +355,11 @@ class MainActivity : ComponentActivity() {
                                 onConfirm = { name, phone, pickup, dropoff, fare, paid, notes ->
                                     if (rideToEdit != null) {
                                         val remaining = (fare - paid).coerceAtLeast(0.0)
+                                        val paymentStatus = when {
+                                            remaining <= 0 -> "PAID"
+                                            paid > 0 -> "PARTIAL"
+                                            else -> "UNPAID"
+                                        }
                                         viewModel.updateRide(
                                             rideToEdit!!.copy(
                                                 customerName = name,
@@ -362,8 +367,10 @@ class MainActivity : ComponentActivity() {
                                                 pickupLocation = pickup,
                                                 dropoffLocation = dropoff,
                                                 fare = fare,
+                                                paymentStatus = paymentStatus,
                                                 amountPaid = paid,
                                                 remainingBakaya = remaining,
+                                                rideDate = rideToEdit!!.rideDate,
                                                 notes = notes
                                             )
                                         )
@@ -398,6 +405,8 @@ class MainActivity : ComponentActivity() {
                                                 amountPaid = paid,
                                                 remainingBakaya = remaining,
                                                 isDelivered = isDelivered,
+                                                isPaid = remaining <= 0,
+                                                date = parcelToEdit!!.date,
                                                 notes = notes
                                             )
                                         )
@@ -452,12 +461,10 @@ class MainActivity : ComponentActivity() {
                             PdfOptionsDialog(
                                 onDismiss = { showPdfOptionsDialog = false },
                                 onGenerate = { reportType ->
-                                    val (rides, parcels, debtors, payments) = when (reportType) {
-                                        "RIDES" -> Quadruple(uiState.rides, emptyList(), emptyList(), emptyList())
-                                        "PARCELS" -> Quadruple(emptyList(), uiState.parcels, emptyList(), emptyList())
-                                        "DEBTORS" -> Quadruple(emptyList(), emptyList(), uiState.debtors, uiState.payments)
-                                        else -> Quadruple(uiState.rides, uiState.parcels, uiState.debtors, uiState.payments)
-                                    }
+                                    val rides = if (reportType == "PARCELS" || reportType == "DEBTORS") emptyList() else uiState.allRides
+                                    val parcels = if (reportType == "RIDES" || reportType == "DEBTORS") emptyList() else uiState.allParcels
+                                    val debtors = if (reportType == "RIDES" || reportType == "PARCELS") emptyList() else uiState.allDebtors
+                                    val payments = if (reportType == "RIDES" || reportType == "PARCELS") emptyList() else uiState.payments
                                     val file = PdfReportGenerator.generateFullReport(
                                         context = context,
                                         rides = rides,
