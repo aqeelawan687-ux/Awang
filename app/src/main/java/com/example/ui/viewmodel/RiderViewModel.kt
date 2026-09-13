@@ -34,17 +34,17 @@ data class RiderUiState(
     val selectedCustomerName: String? = null,
     val selectedCustomerPhone: String? = null
 ) {
-    val totalRideFare: Double get() = rides.sumOf { it.fare }
-    val totalRidePaid: Double get() = rides.sumOf { it.amountPaid }
-    val totalRideBakaya: Double get() = rides.sumOf { it.remainingBakaya }
+    val totalRideFare: Double get() = allRides.sumOf { it.fare }
+    val totalRidePaid: Double get() = allRides.sumOf { it.amountPaid }
+    val totalRideBakaya: Double get() = allRides.sumOf { it.remainingBakaya }
 
-    val totalParcelCharges: Double get() = parcels.sumOf { it.deliveryCharges }
-    val totalParcelPaid: Double get() = parcels.sumOf { it.amountPaid }
-    val totalParcelBakaya: Double get() = parcels.sumOf { it.remainingBakaya }
-    val totalDeliveredParcels: Int get() = parcels.count { it.isDelivered }
+    val totalParcelCharges: Double get() = allParcels.sumOf { it.deliveryCharges }
+    val totalParcelPaid: Double get() = allParcels.sumOf { it.amountPaid }
+    val totalParcelBakaya: Double get() = allParcels.sumOf { it.remainingBakaya }
+    val totalDeliveredParcels: Int get() = allParcels.count { it.isDelivered }
 
-    val totalDebtorsCount: Int get() = debtors.count { it.remainingDebt > 0 }
-    val totalRemainingDebt: Double get() = debtors.sumOf { it.remainingDebt }
+    val totalDebtorsCount: Int get() = allDebtors.count { it.remainingDebt > 0 }
+    val totalRemainingDebt: Double get() = allDebtors.sumOf { it.remainingDebt }
     val totalRecoveredCash: Double get() = payments.sumOf { it.amountPaid }
 
     val netCashInHand: Double get() = totalRidePaid + totalParcelPaid + totalRecoveredCash
@@ -61,7 +61,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         val database = AppDatabase.getDatabase(application)
-        repository = RiderRepository(database.riderDao())
+        repository = RiderRepository(database.riderDao(), database)
     }
 
     private data class DatabaseData(

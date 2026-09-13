@@ -92,6 +92,9 @@ interface RiderDao {
     @Query("SELECT * FROM payment_history WHERE debtorId = :debtorId ORDER BY paymentDate DESC")
     fun getPaymentsForDebtor(debtorId: Long): Flow<List<PaymentHistoryEntity>>
 
+    @Query("SELECT * FROM payment_history WHERE id = :id")
+    suspend fun getPaymentById(id: Long): PaymentHistoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: PaymentHistoryEntity): Long
 
@@ -123,6 +126,9 @@ interface RiderDao {
     @Update
     suspend fun updateCustomerHistory(history: CustomerHistoryEntity)
 
+    @Query("SELECT * FROM customer_history WHERE id = :id")
+    suspend fun getCustomerHistoryById(id: Long): CustomerHistoryEntity?
+
     @Query("SELECT * FROM customer_history WHERE referenceId = :referenceId AND activityType = :activityType LIMIT 1")
     suspend fun getCustomerHistoryByReference(referenceId: Long, activityType: String): CustomerHistoryEntity?
 
@@ -134,6 +140,12 @@ interface RiderDao {
 
     @Query("DELETE FROM customer_history WHERE id IN (:ids)")
     suspend fun deleteCustomerHistoryBatch(ids: List<Long>)
+
+    @Query("DELETE FROM customer_history WHERE referenceId = :referenceId AND activityType = :activityType")
+    suspend fun deleteCustomerHistoryByReference(referenceId: Long, activityType: String)
+
+    @Query("DELETE FROM customer_history WHERE (LOWER(customerName) = LOWER(:name) OR (phone = :phone AND phone != ''))")
+    suspend fun deleteHistoryForCustomer(name: String, phone: String)
 
     @Query("DELETE FROM customer_history")
     suspend fun clearAllCustomerHistory()

@@ -9,7 +9,6 @@ import com.example.ui.viewmodel.RiderUiState
 import com.example.util.DateTimeUtils
 import com.example.util.DistanceCalculator
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
@@ -56,124 +55,249 @@ class RiderUnitTest {
     }
 
     @Test
-    fun testRideAmountEditCalculations() {
-        val originalTimestamp = 1700000000000L
-        val initialRide = RideEntity(
+    fun testScenario1_AddRideWithPartialPayment() {
+        val fare = 1000.0
+        val paid = 700.0
+        val bakaya = (fare - paid).coerceAtLeast(0.0)
+        val ride = RideEntity(
             id = 1,
             customerName = "Ali Khan",
             phone = "03001234567",
-            pickupLocation = "A",
-            dropoffLocation = "B",
-            fare = 1000.0,
-            amountPaid = 1000.0,
-            remainingBakaya = 0.0,
-            rideDate = originalTimestamp
+            pickupLocation = "Station",
+            dropoffLocation = "Cantt",
+            fare = fare,
+            amountPaid = paid,
+            remainingBakaya = bakaya,
+            rideDate = 1700000000000L
         )
-
-        // User edits Fare from 1000 to 1500, amountPaid remains 1000
-        val newFare = 1500.0
-        val paid = 1000.0
-        val updatedRemaining = (newFare - paid).coerceAtLeast(0.0)
-        val editedRide = initialRide.copy(
-            fare = newFare,
-            remainingBakaya = updatedRemaining
-        )
-
-        assertEquals(1500.0, editedRide.fare, 0.01)
-        assertEquals(500.0, editedRide.remainingBakaya, 0.01)
-        assertEquals(originalTimestamp, editedRide.rideDate) // Timestamp preserved!
-    }
-
-    @Test
-    fun testParcelAmountEditCalculations() {
-        val originalTimestamp = 1700000050000L
-        val initialParcel = ParcelEntity(
+        val debtor = DebtorEntity(
             id = 1,
-            senderName = "Babar",
-            senderPhone = "03111234567",
-            receiverName = "Rizwan",
-            receiverPhone = "03221234567",
-            pickupAddress = "Gulberg",
-            deliveryAddress = "DHA",
-            deliveryCharges = 500.0,
-            amountPaid = 500.0,
-            remainingBakaya = 0.0,
-            date = originalTimestamp
+            name = ride.customerName,
+            phone = ride.phone,
+            totalDebt = bakaya,
+            remainingDebt = bakaya
         )
 
-        // User edits Delivery Charges from 500 to 800, paid 500
-        val newCharges = 800.0
-        val paid = 500.0
-        val updatedRemaining = (newCharges - paid).coerceAtLeast(0.0)
-        val editedParcel = initialParcel.copy(
-            deliveryCharges = newCharges,
-            remainingBakaya = updatedRemaining
-        )
-
-        assertEquals(800.0, editedParcel.deliveryCharges, 0.01)
-        assertEquals(300.0, editedParcel.remainingBakaya, 0.01)
-        assertEquals(originalTimestamp, editedParcel.date) // Timestamp preserved!
+        assertEquals(1000.0, ride.fare, 0.01)
+        assertEquals(700.0, ride.amountPaid, 0.01)
+        assertEquals(300.0, ride.remainingBakaya, 0.01)
+        assertEquals(300.0, debtor.remainingDebt, 0.01)
     }
 
     @Test
-    fun testDashboardBalancesUpdateAccurately() {
-        // Initial state
-        val ride1 = RideEntity(id = 1, customerName = "Ali", phone = "111", pickupLocation = "P1", dropoffLocation = "D1", fare = 1000.0, amountPaid = 1000.0, remainingBakaya = 0.0)
-        val parcel1 = ParcelEntity(id = 1, senderName = "Kamran", senderPhone = "222", receiverName = "R1", receiverPhone = "333", pickupAddress = "A1", deliveryAddress = "A2", deliveryCharges = 500.0, amountPaid = 500.0, remainingBakaya = 0.0)
-        val debtor1 = DebtorEntity(id = 1, name = "Ali", phone = "111", totalDebt = 0.0, remainingDebt = 0.0)
+    fun testScenario2_EditRideFareDelta() {
+        val initialFare = 1000.0
+        val paid = 700.0
+        val initialBakaya = 300.0
+        var debtorRemaining = 300.0
+        var debtorTotal = 300.0
 
-        val stateBefore = RiderUiState(
-            rides = listOf(ride1),
-            parcels = listOf(parcel1),
-            debtors = listOf(debtor1)
-        )
+        // Increase Fare to 1200: new bakaya = 500
+        val newFare1 = 1200.0
+        val newBakaya1 = (newFare1 - paid).coerceAtLeast(0.0) // 500.0
+        val delta1 = newBakaya1 - initialBakaya // +200.0
+        debtorRemaining = (debtorRemaining + delta1).coerceAtLeast(0.0)
+        debtorTotal = (debtorTotal + delta1).coerceAtLeast(0.0)
 
-        assertEquals(1000.0, stateBefore.totalRidePaid, 0.01)
-        assertEquals(500.0, stateBefore.totalParcelPaid, 0.01)
-        assertEquals(1500.0, stateBefore.netCashInHand, 0.01)
-        assertEquals(0.0, stateBefore.totalRemainingDebt, 0.01)
+        assertEquals(500.0, newBakaya1, 0.01)
+        assertEquals(500.0, debtorRemaining, 0.01)
+        assertEquals(500.0, debtorTotal, 0.01)
 
-        // After editing Ride fare to 1500 (extra 500 bakaya):
-        val ride1Updated = ride1.copy(fare = 1500.0, remainingBakaya = 500.0)
-        val debtor1Updated = debtor1.copy(totalDebt = 500.0, remainingDebt = 500.0)
+        // Decrease Fare to 800: new bakaya = 100
+        val newFare2 = 800.0
+        val newBakaya2 = (newFare2 - paid).coerceAtLeast(0.0) // 100.0
+        val delta2 = newBakaya2 - newBakaya1 // -400.0
+        debtorRemaining = (debtorRemaining + delta2).coerceAtLeast(0.0)
+        debtorTotal = (debtorTotal + delta2).coerceAtLeast(0.0)
 
-        val stateAfter = RiderUiState(
-            rides = listOf(ride1Updated),
-            parcels = listOf(parcel1),
-            debtors = listOf(debtor1Updated)
-        )
-
-        assertEquals(1500.0, stateAfter.totalRideFare, 0.01)
-        assertEquals(1000.0, stateAfter.totalRidePaid, 0.01)
-        assertEquals(500.0, stateAfter.totalRideBakaya, 0.01)
-        assertEquals(500.0, stateAfter.totalRemainingDebt, 0.01)
-        assertEquals(1500.0, stateAfter.netCashInHand, 0.01) // Cash in hand remains 1500
+        assertEquals(100.0, newBakaya2, 0.01)
+        assertEquals(100.0, debtorRemaining, 0.01)
+        assertEquals(100.0, debtorTotal, 0.01)
     }
 
     @Test
-    fun testCustomerHistoryReferenceSync() {
-        val originalTimestamp = 1690000000000L
-        val historyEntry = CustomerHistoryEntity(
-            id = 10,
-            customerName = "Ali Khan",
-            phone = "03001234567",
+    fun testScenario3_EditRidePaidAmount() {
+        val fare = 1000.0
+        val initialPaid = 700.0
+        val oldBakaya = 300.0
+        var debtorRemaining = 300.0
+
+        // Paid becomes 1000 (fully paid)
+        val newPaid = 1000.0
+        val newBakaya = (fare - newPaid).coerceAtLeast(0.0) // 0.0
+        val delta = newBakaya - oldBakaya // -300.0
+        debtorRemaining = (debtorRemaining + delta).coerceAtLeast(0.0)
+
+        assertEquals(0.0, newBakaya, 0.01)
+        assertEquals(0.0, debtorRemaining, 0.01)
+    }
+
+    @Test
+    fun testScenario4_AddParcelWithPartialPayment() {
+        val charges = 600.0
+        val paid = 400.0
+        val bakaya = (charges - paid).coerceAtLeast(0.0)
+        val parcel = ParcelEntity(
+            id = 1,
+            senderName = "Zubair",
+            senderPhone = "03211234567",
+            receiverName = "Hamza",
+            receiverPhone = "03331234567",
+            pickupAddress = "Johar Town",
+            deliveryAddress = "Gulberg",
+            deliveryCharges = charges,
+            amountPaid = paid,
+            remainingBakaya = bakaya,
+            date = 1700000000000L
+        )
+        val debtor = DebtorEntity(
+            id = 1,
+            name = parcel.senderName,
+            phone = parcel.senderPhone,
+            totalDebt = bakaya,
+            remainingDebt = bakaya
+        )
+
+        assertEquals(600.0, parcel.deliveryCharges, 0.01)
+        assertEquals(400.0, parcel.amountPaid, 0.01)
+        assertEquals(200.0, parcel.remainingBakaya, 0.01)
+        assertEquals(200.0, debtor.remainingDebt, 0.01)
+    }
+
+    @Test
+    fun testScenario5_EditParcelChargesDelta() {
+        val initialCharges = 600.0
+        val paid = 400.0
+        val oldBakaya = 200.0
+        var debtorRemaining = 200.0
+
+        // Increase charges to 900
+        val newCharges = 900.0
+        val newBakaya = (newCharges - paid).coerceAtLeast(0.0) // 500.0
+        val delta = newBakaya - oldBakaya // +300.0
+        debtorRemaining = (debtorRemaining + delta).coerceAtLeast(0.0)
+
+        assertEquals(500.0, newBakaya, 0.01)
+        assertEquals(500.0, debtorRemaining, 0.01)
+    }
+
+    @Test
+    fun testScenario6_AddPaymentWasooli() {
+        var debtorRemaining = 500.0
+        val paymentAmount = 300.0
+
+        debtorRemaining = (debtorRemaining - paymentAmount).coerceAtLeast(0.0)
+        assertEquals(200.0, debtorRemaining, 0.01)
+    }
+
+    @Test
+    fun testScenario7_EditPaymentDelta() {
+        var debtorRemaining = 200.0 // Was 500, paid 300 -> remaining 200
+        val oldPayment = 300.0
+
+        // Edit payment to 400: delta = 400 - 300 = +100
+        val newPayment1 = 400.0
+        val delta1 = newPayment1 - oldPayment // +100.0
+        debtorRemaining = (debtorRemaining - delta1).coerceAtLeast(0.0)
+        assertEquals(100.0, debtorRemaining, 0.01)
+
+        // Edit payment from 400 to 200: delta = 200 - 400 = -200
+        val newPayment2 = 200.0
+        val delta2 = newPayment2 - newPayment1 // -200.0
+        debtorRemaining = (debtorRemaining - delta2).coerceAtLeast(0.0)
+        assertEquals(300.0, debtorRemaining, 0.01)
+    }
+
+    @Test
+    fun testScenario8_DeletePaymentReversal() {
+        var debtorRemaining = 200.0
+        val paymentToDelete = 300.0
+
+        debtorRemaining = debtorRemaining + paymentToDelete
+        assertEquals(500.0, debtorRemaining, 0.01)
+    }
+
+    @Test
+    fun testScenario9_EditCustomerBakayaDirectly() {
+        var oldRemaining = 500.0
+        var totalDebt = 500.0
+        val newBakaya = 700.0
+
+        val delta = newBakaya - oldRemaining // +200.0
+        totalDebt = (totalDebt + delta).coerceAtLeast(0.0)
+        oldRemaining = newBakaya
+
+        assertEquals(700.0, oldRemaining, 0.01)
+        assertEquals(700.0, totalDebt, 0.01)
+    }
+
+    @Test
+    fun testScenario10_ClearCustomerBakayaDirectly() {
+        var debtorRemaining = 700.0
+        var totalDebt = 700.0
+
+        val cleared = debtorRemaining
+        totalDebt = (totalDebt - cleared).coerceAtLeast(0.0)
+        debtorRemaining = 0.0
+
+        assertEquals(0.0, debtorRemaining, 0.01)
+        assertEquals(0.0, totalDebt, 0.01)
+    }
+
+    @Test
+    fun testScenario11_DashboardTotalsConsistent() {
+        val ride1 = RideEntity(id = 1, customerName = "Ali", phone = "111", pickupLocation = "P1", dropoffLocation = "D1", fare = 1000.0, amountPaid = 700.0, remainingBakaya = 300.0)
+        val parcel1 = ParcelEntity(id = 1, senderName = "Kamran", senderPhone = "222", receiverName = "R1", receiverPhone = "333", pickupAddress = "A1", deliveryAddress = "A2", deliveryCharges = 600.0, amountPaid = 400.0, remainingBakaya = 200.0)
+        val debtor1 = DebtorEntity(id = 1, name = "Ali", phone = "111", totalDebt = 300.0, remainingDebt = 300.0)
+        val debtor2 = DebtorEntity(id = 2, name = "Kamran", phone = "222", totalDebt = 200.0, remainingDebt = 200.0)
+        val payment1 = PaymentHistoryEntity(id = 1, debtorId = 1, amountPaid = 100.0, paymentDate = 1700000000000L, note = "Cash")
+
+        val state = RiderUiState(
+            allRides = listOf(ride1),
+            allParcels = listOf(parcel1),
+            allDebtors = listOf(debtor1.copy(remainingDebt = 200.0), debtor2),
+            payments = listOf(payment1)
+        )
+
+        assertEquals(1000.0, state.totalRideFare, 0.01)
+        assertEquals(700.0, state.totalRidePaid, 0.01)
+        assertEquals(300.0, state.totalRideBakaya, 0.01)
+
+        assertEquals(600.0, state.totalParcelCharges, 0.01)
+        assertEquals(400.0, state.totalParcelPaid, 0.01)
+        assertEquals(200.0, state.totalParcelBakaya, 0.01)
+
+        assertEquals(400.0, state.totalRemainingDebt, 0.01) // 200 (Ali) + 200 (Kamran)
+        assertEquals(2, state.totalDebtorsCount)
+
+        assertEquals(100.0, state.totalRecoveredCash, 0.01)
+        // Net Cash in Hand = totalRidePaid (700) + totalParcelPaid (400) + totalRecoveredCash (100) = 1200
+        assertEquals(1200.0, state.netCashInHand, 0.01)
+    }
+
+    @Test
+    fun testCustomerHistoryTimestampPreservedOnEdit() {
+        val originalTime = 1690000000000L
+        val originalHistory = CustomerHistoryEntity(
+            id = 1,
+            customerName = "Ali",
+            phone = "111",
             activityType = "RIDE",
+            details = "Ride from A to B",
             amount = 1000.0,
-            details = "Ride: Station -> Cantt | Fare: Rs. 1000 | Paid: Rs. 1000 | Bakaya: Rs. 0",
-            timestamp = originalTimestamp,
-            referenceId = 1L
+            bakayaAmount = 300.0,
+            timestamp = originalTime,
+            referenceId = 10L
         )
 
-        // When ride is updated, history retains original timestamp and updates amount & details
-        val updatedHistory = historyEntry.copy(
-            amount = 1500.0,
-            details = "Ride: Station -> Cantt | Fare: Rs. 1500 | Paid: Rs. 1000 | Bakaya: Rs. 500",
-            timestamp = historyEntry.timestamp // Preserves original creation timestamp!
+        val updatedHistory = originalHistory.copy(
+            amount = 1200.0,
+            bakayaAmount = 500.0,
+            details = "Ride from A to B (Fare: Rs. 1200, Paid: Rs. 700, Bakaya: Rs. 500)"
         )
 
-        assertEquals(originalTimestamp, updatedHistory.timestamp)
-        assertEquals(1500.0, updatedHistory.amount, 0.01)
-        assertTrue(updatedHistory.details.contains("Bakaya: Rs. 500"))
+        assertEquals(originalTime, updatedHistory.timestamp)
+        assertEquals(1200.0, updatedHistory.amount, 0.01)
+        assertEquals(500.0, updatedHistory.bakayaAmount, 0.01)
     }
 }
-

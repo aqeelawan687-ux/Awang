@@ -66,7 +66,7 @@ fun CustomerAccountScreen(
 ) {
     val context = LocalContext.current
 
-    val debtor = state.debtors.find {
+    val debtor = state.allDebtors.find {
         it.name.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
     }
     val currentBakaya = debtor?.remainingDebt ?: 0.0
