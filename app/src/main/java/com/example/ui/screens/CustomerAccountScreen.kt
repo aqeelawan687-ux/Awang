@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.entity.CustomerHistoryEntity
+import com.example.ui.components.RecordPaymentDialog
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.RedError
 import com.example.ui.viewmodel.RiderUiState
@@ -60,6 +62,7 @@ fun CustomerAccountScreen(
     phone: String,
     state: RiderUiState,
     onBack: () -> Unit,
+    onRecordPayment: (Double, String) -> Unit,
     onUpdateBakaya: (Double) -> Unit,
     onDeleteBakaya: () -> Unit,
     onDeleteHistoryItem: (CustomerHistoryEntity) -> Unit
@@ -76,6 +79,7 @@ fun CustomerAccountScreen(
     }
 
     var showEditBakayaDialog by remember { mutableStateOf(false) }
+    var showAddPaymentDialog by remember { mutableStateOf(false) }
     var newBakayaStr by remember { mutableStateOf(currentBakaya.toInt().toString()) }
 
     Scaffold(
@@ -135,7 +139,23 @@ fun CustomerAccountScreen(
                         color = if (currentBakaya > 0) RedError else GreenPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { showAddPaymentDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .height(36.dp)
+                                .testTag("customer_add_payment_button"),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Payments, contentDescription = null, modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Payment")
+                        }
+
                         Button(
                             onClick = {
                                 newBakayaStr = currentBakaya.toInt().toString()
@@ -157,6 +177,51 @@ fun CustomerAccountScreen(
                             ) {
                                 Text("Clear to Rs. 0")
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val file = PdfReportGenerator.generateCustomerLedgerPdf(
+                                    context = context,
+                                    customerName = customerName,
+                                    phone = phone,
+                                    remainingDebt = currentBakaya,
+                                    history = historyItems
+                                )
+                                ShareUtil.sharePdf(context, file)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(36.dp)
+                                .testTag("customer_pdf_report_button")
+                        ) {
+                            Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, tint = RedError, modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("PDF Statement", fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val msg = "Assalam-o-Alaikum $customerName,\nYour current account statement with Aqeel Rider:\nOutstanding Balance (Bakaya): Rs. ${currentBakaya.toInt()}\nTotal activities logged: ${historyItems.size}\nThank you!"
+                                ShareUtil.shareViaWhatsApp(context, phone, msg)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(36.dp)
+                                .testTag("customer_whatsapp_button")
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = GreenPrimary, modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("WhatsApp Statement", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -256,6 +321,18 @@ fun CustomerAccountScreen(
                 OutlinedButton(onClick = { showEditBakayaDialog = false }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    if (showAddPaymentDialog) {
+        RecordPaymentDialog(
+            debtorName = customerName,
+            remainingDebt = currentBakaya,
+            onDismiss = { showAddPaymentDialog = false },
+            onConfirm = { amount, note ->
+                onRecordPayment(amount, note)
+                showAddPaymentDialog = false
             }
         )
     }

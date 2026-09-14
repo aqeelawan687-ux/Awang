@@ -157,6 +157,14 @@ class MainActivity : ComponentActivity() {
                                     phone = uiState.selectedCustomerPhone ?: "",
                                     state = uiState,
                                     onBack = { currentScreen = "MAIN" },
+                                    onRecordPayment = { amount, note ->
+                                        viewModel.recordCustomerPayment(
+                                            uiState.selectedCustomerName ?: "Customer",
+                                            uiState.selectedCustomerPhone ?: "",
+                                            amount,
+                                            note
+                                        )
+                                    },
                                     onUpdateBakaya = { newBakaya ->
                                         viewModel.updateCustomerBakaya(
                                             uiState.selectedCustomerName ?: "",

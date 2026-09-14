@@ -69,7 +69,7 @@ fun AddEditRideDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Customer Name *") },
+                    label = { Text("Customer Name (Optional, Default 'Customer')") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("ride_name_input"),
@@ -79,7 +79,7 @@ fun AddEditRideDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
+                    label = { Text("Phone Number (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true
@@ -94,7 +94,7 @@ fun AddEditRideDialog(
                             if (paidStr.isEmpty()) paidStr = fareStr
                         }
                     },
-                    label = { Text("Pickup Location *") },
+                    label = { Text("Pickup Location (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -108,7 +108,7 @@ fun AddEditRideDialog(
                             if (paidStr.isEmpty()) paidStr = fareStr
                         }
                     },
-                    label = { Text("Drop-off Location *") },
+                    label = { Text("Drop-off Location (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -164,8 +164,11 @@ fun AddEditRideDialog(
                 onClick = {
                     val fare = fareStr.toDoubleOrNull() ?: 0.0
                     val paid = paidStr.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank() && pickup.isNotBlank() && dropoff.isNotBlank() && fare > 0) {
-                        onConfirm(name, phone, pickup, dropoff, fare, paid, notes)
+                    val finalName = name.ifBlank { "Customer" }
+                    val finalPickup = pickup.ifBlank { "Pickup Location" }
+                    val finalDropoff = dropoff.ifBlank { "Drop-off Location" }
+                    if (fare > 0) {
+                        onConfirm(finalName.trim(), phone.trim(), finalPickup.trim(), finalDropoff.trim(), fare, paid, notes.trim())
                     }
                 },
                 modifier = Modifier.testTag("save_ride_button")
@@ -226,7 +229,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = senderName,
                     onValueChange = { senderName = it },
-                    label = { Text("Sender Name *") },
+                    label = { Text("Sender Name (Optional, Default 'Customer')") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -234,7 +237,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = senderPhone,
                     onValueChange = { senderPhone = it },
-                    label = { Text("Sender Phone") },
+                    label = { Text("Sender Phone (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true
@@ -243,7 +246,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = receiverName,
                     onValueChange = { receiverName = it },
-                    label = { Text("Receiver Name *") },
+                    label = { Text("Receiver Name (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -251,7 +254,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = receiverPhone,
                     onValueChange = { receiverPhone = it },
-                    label = { Text("Receiver Phone") },
+                    label = { Text("Receiver Phone (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true
@@ -260,7 +263,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = pickup,
                     onValueChange = { pickup = it },
-                    label = { Text("Pickup Address *") },
+                    label = { Text("Pickup Address (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -268,7 +271,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = delivery,
                     onValueChange = { delivery = it },
-                    label = { Text("Delivery Address *") },
+                    label = { Text("Delivery Address (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -299,7 +302,7 @@ fun AddEditParcelDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes / Item Description") },
+                    label = { Text("Notes / Item Description (Optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -309,8 +312,12 @@ fun AddEditParcelDialog(
                 onClick = {
                     val charges = chargesStr.toDoubleOrNull() ?: 0.0
                     val paid = paidStr.toDoubleOrNull() ?: 0.0
-                    if (senderName.isNotBlank() && receiverName.isNotBlank() && delivery.isNotBlank() && charges > 0) {
-                        onConfirm(senderName, senderPhone, receiverName, receiverPhone, pickup, delivery, charges, paid, isDelivered, notes)
+                    val finalSender = senderName.ifBlank { "Customer" }
+                    val finalReceiver = receiverName.ifBlank { "Receiver" }
+                    val finalPickup = pickup.ifBlank { "Pickup Address" }
+                    val finalDelivery = delivery.ifBlank { "Delivery Address" }
+                    if (charges > 0) {
+                        onConfirm(finalSender.trim(), senderPhone.trim(), finalReceiver.trim(), receiverPhone.trim(), finalPickup.trim(), finalDelivery.trim(), charges, paid, isDelivered, notes.trim())
                     }
                 }
             ) {
@@ -357,7 +364,7 @@ fun AddEditDebtorDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
+                    label = { Text("Phone Number (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true
@@ -366,7 +373,7 @@ fun AddEditDebtorDialog(
                 OutlinedTextField(
                     value = debtStr,
                     onValueChange = { debtStr = it },
-                    label = { Text("Debt Amount (Rs.) *") },
+                    label = { Text("Initial Debt / Bakaya (Optional, Default Rs. 0)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
@@ -375,7 +382,7 @@ fun AddEditDebtorDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Reason / Notes") },
+                    label = { Text("Reason / Notes (Optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -384,8 +391,8 @@ fun AddEditDebtorDialog(
             Button(
                 onClick = {
                     val debt = debtStr.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank() && debt > 0) {
-                        onConfirm(name, phone, debt, notes)
+                    if (name.isNotBlank()) {
+                        onConfirm(name.trim(), phone.trim(), debt, notes.trim())
                     }
                 }
             ) {

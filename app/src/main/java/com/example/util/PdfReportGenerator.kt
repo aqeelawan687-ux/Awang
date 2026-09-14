@@ -146,28 +146,8 @@ object PdfReportGenerator {
         history: List<CustomerHistoryEntity>
     ): File {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas: Canvas = page.canvas
-
-        val paint = Paint()
         val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
 
-        // Header
-        paint.color = Color.rgb(15, 23, 42)
-        canvas.drawRect(0f, 0f, 595f, 90f, paint)
-
-        paint.color = Color.WHITE
-        paint.textSize = 18f
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("CUSTOMER ACCOUNT STATEMENT", 30f, 40f, paint)
-
-        paint.textSize = 11f
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        canvas.drawText("Customer: $customerName | Phone: $phone", 30f, 60f, paint)
-        canvas.drawText("Issued: ${dateFormat.format(Date())}", 30f, 78f, paint)
-
-        var y = 125f
         val textPaint = Paint().apply {
             color = Color.rgb(30, 41, 59)
             textSize = 10f
@@ -182,27 +162,78 @@ object PdfReportGenerator {
             textSize = 14f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
+        val footerLinePaint = Paint().apply {
+            color = Color.rgb(203, 213, 225)
+        }
+        val footerTextPaint = Paint().apply {
+            color = Color.rgb(100, 116, 139)
+            textSize = 9f
+        }
 
+        var pageNum = 1
+        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+        var page = pdfDocument.startPage(pageInfo)
+        var canvas = page.canvas
+
+        // Header
+        val headerPaint = Paint().apply { color = Color.rgb(15, 23, 42) }
+        canvas.drawRect(0f, 0f, 595f, 90f, headerPaint)
+
+        val headerTitlePaint = Paint().apply {
+            color = Color.WHITE
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        canvas.drawText("CUSTOMER ACCOUNT STATEMENT", 30f, 40f, headerTitlePaint)
+
+        val headerSubPaint = Paint().apply {
+            color = Color.WHITE
+            textSize = 11f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+        }
+        canvas.drawText("Customer: $customerName | Phone: $phone", 30f, 60f, headerSubPaint)
+        canvas.drawText("Issued: ${dateFormat.format(Date())}", 30f, 78f, headerSubPaint)
+
+        var y = 125f
         canvas.drawText("Outstanding Balance (Bakaya): Rs. ${remainingDebt.toInt()}", 30f, y, redPaint)
         y += 25f
 
-        canvas.drawText("Transaction & Ledger History:", 30f, y, boldPaint)
+        canvas.drawText("Transaction & Ledger History (${history.size} records):", 30f, y, boldPaint)
         y += 20f
 
-        for (item in history.take(20)) {
+        for (item in history) {
+            if (y > 780f) {
+                // Draw footer on current page
+                canvas.drawLine(30f, 800f, 565f, 800f, footerLinePaint)
+                canvas.drawText("Aqeel Rider Services • Page $pageNum", 30f, 815f, footerTextPaint)
+                pdfDocument.finishPage(page)
+
+                pageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+
+                // Small sub-header on continuation pages
+                canvas.drawRect(0f, 0f, 595f, 40f, headerPaint)
+                val contTitlePaint = Paint().apply {
+                    color = Color.WHITE
+                    textSize = 12f
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                }
+                canvas.drawText("CUSTOMER STATEMENT — $customerName (Contd.)", 30f, 25f, contTitlePaint)
+                y = 65f
+            }
+
             val dateStr = DateTimeUtils.formatDateTime(item.timestamp)
             val line = "[$dateStr] [${item.activityType}] ${item.details}"
-            canvas.drawText(line, 30f, y, textPaint)
-            y += 16f
+            val printableLine = if (line.length > 95) line.substring(0, 92) + "..." else line
+            canvas.drawText(printableLine, 30f, y, textPaint)
+            y += 18f
         }
 
-        // Footer
-        paint.color = Color.rgb(203, 213, 225)
-        canvas.drawLine(30f, 800f, 565f, 800f, paint)
-        paint.color = Color.rgb(100, 116, 139)
-        paint.textSize = 9f
-        canvas.drawText("Aqeel Rider Services • Thank you for your business!", 30f, 815f, paint)
-
+        // Footer on last page
+        canvas.drawLine(30f, 800f, 565f, 800f, footerLinePaint)
+        canvas.drawText("Aqeel Rider Services • Page $pageNum • Thank you for your business!", 30f, 815f, footerTextPaint)
         pdfDocument.finishPage(page)
 
         val safeName = customerName.replace(Regex("[^a-zA-Z0-9]"), "_")

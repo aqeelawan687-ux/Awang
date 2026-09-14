@@ -452,6 +452,28 @@ class RiderRepository(
         paymentId
     }
 
+    suspend fun recordCustomerPayment(name: String, phone: String, amount: Double, note: String): Long = runInTransaction {
+        var debtor = dao.findDebtorByNameOrPhone(name, phone)
+        if (debtor == null) {
+            val newDebtorId = dao.insertDebtor(
+                DebtorEntity(
+                    name = name.trim(),
+                    phone = phone.trim(),
+                    totalDebt = 0.0,
+                    remainingDebt = 0.0,
+                    lastUpdated = System.currentTimeMillis(),
+                    notes = "Customer Account"
+                )
+            )
+            debtor = dao.getDebtorById(newDebtorId)
+        }
+        if (debtor != null) {
+            addPayment(debtor.id, amount, note)
+        } else {
+            0L
+        }
+    }
+
     suspend fun updatePayment(payment: PaymentHistoryEntity, oldAmount: Double) = runInTransaction {
         val oldPayment = dao.getPaymentById(payment.id)
         val preservedDate = oldPayment?.paymentDate ?: payment.paymentDate

@@ -323,6 +323,12 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun recordCustomerPayment(name: String, phone: String, amount: Double, note: String) {
+        viewModelScope.launch {
+            repository.recordCustomerPayment(name, phone, amount, note)
+        }
+    }
+
     fun updatePayment(payment: PaymentHistoryEntity, oldAmount: Double) {
         viewModelScope.launch {
             repository.updatePayment(payment, oldAmount)
