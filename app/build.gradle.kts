@@ -21,10 +21,15 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            val keystorePath = System.getenv("KEYSTORE_PATH")
+            storeFile = if (!keystorePath.isNullOrBlank()) {
+                file(keystorePath)
+            } else {
+                rootProject.file("my-upload-key.jks")
+            }
+            storePassword = System.getenv("STORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 
@@ -38,7 +43,7 @@ android {
             )
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            // Uses default debug signing configuration
         }
     }
     compileOptions {
