@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,7 +51,8 @@ fun DashboardScreen(
     onNavigateToDebts: () -> Unit,
     onNavigateToReports: () -> Unit,
     onQuickAddRide: () -> Unit,
-    onQuickAddParcel: () -> Unit
+    onQuickAddParcel: () -> Unit,
+    onAddAccount: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -64,7 +66,7 @@ fun DashboardScreen(
             // Quick Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = onQuickAddRide,
@@ -76,7 +78,7 @@ fun DashboardScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
                 ) {
                     Icon(imageVector = Icons.Default.DirectionsCar, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text("Add Ride", fontWeight = FontWeight.Bold)
                 }
 
@@ -90,8 +92,22 @@ fun DashboardScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
                 ) {
                     Icon(imageVector = Icons.Default.Inventory2, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add Parcel", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Saman", fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onAddAccount,
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .height(48.dp)
+                        .testTag("quick_add_account_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                ) {
+                    Icon(imageVector = Icons.Default.PersonAdd, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Account", fontWeight = FontWeight.Bold)
                 }
             }
 

@@ -17,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Share
@@ -47,7 +49,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.entity.CustomerHistoryEntity
+import com.example.ui.components.AddEditParcelDialog
+import com.example.ui.components.AddEditRideDialog
 import com.example.ui.components.RecordPaymentDialog
+import com.example.ui.theme.BluePrimary
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.RedError
 import com.example.ui.viewmodel.RiderUiState
@@ -65,7 +70,28 @@ fun CustomerAccountScreen(
     onRecordPayment: (Double, String) -> Unit,
     onUpdateBakaya: (Double) -> Unit,
     onDeleteBakaya: () -> Unit,
-    onDeleteHistoryItem: (CustomerHistoryEntity) -> Unit
+    onDeleteHistoryItem: (CustomerHistoryEntity) -> Unit,
+    onAddRideForCustomer: (
+        customerName: String,
+        phone: String,
+        pickup: String,
+        dropoff: String,
+        fare: Double,
+        amountPaid: Double,
+        notes: String
+    ) -> Unit = { _, _, _, _, _, _, _ -> },
+    onAddParcelForCustomer: (
+        senderName: String,
+        senderPhone: String,
+        receiverName: String,
+        receiverPhone: String,
+        pickupAddress: String,
+        deliveryAddress: String,
+        deliveryCharges: Double,
+        amountPaid: Double,
+        isDelivered: Boolean,
+        notes: String
+    ) -> Unit = { _, _, _, _, _, _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
 
@@ -80,6 +106,8 @@ fun CustomerAccountScreen(
 
     var showEditBakayaDialog by remember { mutableStateOf(false) }
     var showAddPaymentDialog by remember { mutableStateOf(false) }
+    var showAddRideDialog by remember { mutableStateOf(false) }
+    var showAddParcelDialog by remember { mutableStateOf(false) }
     var newBakayaStr by remember { mutableStateOf(currentBakaya.toInt().toString()) }
 
     Scaffold(
@@ -123,7 +151,7 @@ fun CustomerAccountScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Outstanding Balance Card
+            // Outstanding Balance & Customer Financial Summary Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -139,7 +167,46 @@ fun CustomerAccountScreen(
                         color = if (currentBakaya > 0) RedError else GreenPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
+
+                    // Row 1 Actions: Add Ride & Add Saman / Parcel
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { showAddRideDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .testTag("customer_add_ride_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                        ) {
+                            Icon(imageVector = Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Ride", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { showAddParcelDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .testTag("customer_add_parcel_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Saman", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Row 2 Actions: Add Payment & Edit Bakaya & Clear
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -147,6 +214,7 @@ fun CustomerAccountScreen(
                             onClick = { showAddPaymentDialog = true },
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier
+                                .weight(1f)
                                 .height(36.dp)
                                 .testTag("customer_add_payment_button"),
                             colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
@@ -175,13 +243,14 @@ fun CustomerAccountScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.height(36.dp)
                             ) {
-                                Text("Clear to Rs. 0")
+                                Text("Clear Rs. 0")
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
+                    // Row 3 Actions: PDF & WhatsApp Statement
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -294,6 +363,43 @@ fun CustomerAccountScreen(
                 }
             }
         }
+    }
+
+    if (showAddRideDialog) {
+        AddEditRideDialog(
+            rideToEdit = null,
+            onDismiss = { showAddRideDialog = false },
+            onConfirm = { cName, cPhone, pickup, dropoff, fare, paid, notes ->
+                val finalName = if (cName.isNotBlank() && cName != "Customer") cName else customerName
+                val finalPhone = if (cPhone.isNotBlank()) cPhone else phone
+                onAddRideForCustomer(finalName, finalPhone, pickup, dropoff, fare, paid, notes)
+                showAddRideDialog = false
+            }
+        )
+    }
+
+    if (showAddParcelDialog) {
+        AddEditParcelDialog(
+            parcelToEdit = null,
+            onDismiss = { showAddParcelDialog = false },
+            onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes ->
+                val finalSender = if (sName.isNotBlank() && sName != "Customer") sName else customerName
+                val finalSenderPhone = if (sPhone.isNotBlank()) sPhone else phone
+                onAddParcelForCustomer(
+                    finalSender,
+                    finalSenderPhone,
+                    rName,
+                    rPhone,
+                    pickup,
+                    delivery,
+                    charges,
+                    paid,
+                    isDelivered,
+                    notes
+                )
+                showAddParcelDialog = false
+            }
+        )
     }
 
     if (showEditBakayaDialog) {

@@ -180,6 +180,12 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onDeleteHistoryItem = { item ->
                                         viewModel.deleteCustomerHistory(item)
+                                    },
+                                    onAddRideForCustomer = { name, phone, pickup, dropoff, fare, paid, notes ->
+                                        viewModel.addRide(name, phone, pickup, dropoff, fare, paid, notes)
+                                    },
+                                    onAddParcelForCustomer = { sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes ->
+                                        viewModel.addParcel(sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes)
                                     }
                                 )
                             }
@@ -275,6 +281,10 @@ class MainActivity : ComponentActivity() {
                                                 onQuickAddParcel = {
                                                     parcelToEdit = null
                                                     showAddParcelDialog = true
+                                                },
+                                                onAddAccount = {
+                                                    debtorToEdit = null
+                                                    showAddDebtorDialog = true
                                                 }
                                             )
                                             "RIDES" -> RidesScreen(
