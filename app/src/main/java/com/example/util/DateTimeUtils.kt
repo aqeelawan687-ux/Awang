@@ -9,7 +9,7 @@ object DateTimeUtils {
 
     fun formatDateTime(timestamp: Long): String {
         if (timestamp <= 0L) return "N/A"
-        val sdf = SimpleDateFormat(DATE_TIME_PATTERN, Locale.getDefault())
+        val sdf = SimpleDateFormat(DATE_TIME_PATTERN, Locale.US)
         return sdf.format(Date(timestamp))
     }
 }

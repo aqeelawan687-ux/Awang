@@ -77,15 +77,6 @@ fun AddEditRideDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Phone Number (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
                     value = pickup,
                     onValueChange = {
                         pickup = it
@@ -113,43 +104,16 @@ fun AddEditRideDialog(
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = fareStr,
-                        onValueChange = {
-                            fareStr = it
-                            if (paidStr.isEmpty() || paidStr == "0") paidStr = it
-                        },
-                        label = { Text("Total Fare (Rs.) *") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("ride_fare_input"),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = paidStr,
-                        onValueChange = { paidStr = it },
-                        label = { Text("Paid Cash (Rs.)") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("ride_paid_input"),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                }
-                val fareVal = fareStr.toDoubleOrNull() ?: 0.0
-                val paidVal = paidStr.toDoubleOrNull() ?: 0.0
-                val bakaya = (fareVal - paidVal).coerceAtLeast(0.0)
-                if (bakaya > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Bakaya (Udhaar): Rs. ${bakaya.toInt()} will be added to debtor ledger.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+                OutlinedTextField(
+                    value = fareStr,
+                    onValueChange = { fareStr = it },
+                    label = { Text("Total Fare (Rs.) *") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ride_fare_input"),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = notes,
@@ -163,12 +127,13 @@ fun AddEditRideDialog(
             Button(
                 onClick = {
                     val fare = fareStr.toDoubleOrNull() ?: 0.0
-                    val paid = paidStr.toDoubleOrNull() ?: 0.0
+                    val paid = if (rideToEdit != null) rideToEdit.amountPaid else fare
                     val finalName = name.ifBlank { "Customer" }
                     val finalPickup = pickup.ifBlank { "Pickup Location" }
                     val finalDropoff = dropoff.ifBlank { "Drop-off Location" }
+                    val finalPhone = if (rideToEdit != null) rideToEdit.phone else ""
                     if (fare > 0) {
-                        onConfirm(finalName.trim(), phone.trim(), finalPickup.trim(), finalDropoff.trim(), fare, paid, notes.trim())
+                        onConfirm(finalName.trim(), finalPhone, finalPickup.trim(), finalDropoff.trim(), fare, paid, notes.trim())
                     }
                 },
                 modifier = Modifier.testTag("save_ride_button")
@@ -235,28 +200,10 @@ fun AddEditParcelDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = senderPhone,
-                    onValueChange = { senderPhone = it },
-                    label = { Text("Sender Phone (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
                     value = receiverName,
                     onValueChange = { receiverName = it },
                     label = { Text("Receiver Name (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = receiverPhone,
-                    onValueChange = { receiverPhone = it },
-                    label = { Text("Receiver Phone (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -276,28 +223,14 @@ fun AddEditParcelDialog(
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = chargesStr,
-                        onValueChange = {
-                            chargesStr = it
-                            if (paidStr.isEmpty() || paidStr == "0") paidStr = it
-                        },
-                        label = { Text("Charges (Rs.) *") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = paidStr,
-                        onValueChange = { paidStr = it },
-                        label = { Text("Paid Cash (Rs.)") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                }
+                OutlinedTextField(
+                    value = chargesStr,
+                    onValueChange = { chargesStr = it },
+                    label = { Text("Charges (Rs.) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = notes,
@@ -311,13 +244,15 @@ fun AddEditParcelDialog(
             Button(
                 onClick = {
                     val charges = chargesStr.toDoubleOrNull() ?: 0.0
-                    val paid = paidStr.toDoubleOrNull() ?: 0.0
+                    val paid = if (parcelToEdit != null) parcelToEdit.amountPaid else charges
                     val finalSender = senderName.ifBlank { "Customer" }
                     val finalReceiver = receiverName.ifBlank { "Receiver" }
                     val finalPickup = pickup.ifBlank { "Pickup Address" }
                     val finalDelivery = delivery.ifBlank { "Delivery Address" }
+                    val sPhone = if (parcelToEdit != null) parcelToEdit.senderPhone else ""
+                    val rPhone = if (parcelToEdit != null) parcelToEdit.receiverPhone else ""
                     if (charges > 0) {
-                        onConfirm(finalSender.trim(), senderPhone.trim(), finalReceiver.trim(), receiverPhone.trim(), finalPickup.trim(), finalDelivery.trim(), charges, paid, isDelivered, notes.trim())
+                        onConfirm(finalSender.trim(), sPhone, finalReceiver.trim(), rPhone, finalPickup.trim(), finalDelivery.trim(), charges, paid, isDelivered, notes.trim())
                     }
                 }
             ) {

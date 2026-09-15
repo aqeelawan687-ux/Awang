@@ -105,9 +105,16 @@ fun RideCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                        if (ride.phone.isNotBlank()) {
+                            Text(
+                                text = ride.phone,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
-                            text = ride.phone,
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = "🕒 $dateStr",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -213,11 +220,11 @@ fun RideCard(
 fun ParcelCard(
     parcel: ParcelEntity,
     onToggleDelivered: () -> Unit,
-    onTogglePaid: () -> Unit,
+    onTogglePaid: () -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onWhatsApp: () -> Unit,
-    onViewCustomerLedger: () -> Unit
+    onViewCustomerLedger: () -> Unit = {}
 ) {
     val dateStr = DateTimeUtils.formatDateTime(parcel.date)
 
@@ -259,8 +266,13 @@ fun ParcelCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "To: ${parcel.receiverName} (${parcel.receiverPhone})",
+                            text = "To: ${parcel.receiverName}",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "🕒 $dateStr",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -304,13 +316,17 @@ fun ParcelCard(
                     Text(text = "Delivery Charges", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(text = "Rs. ${parcel.deliveryCharges.toInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                Column {
-                    Text(text = "Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "Rs. ${parcel.amountPaid.toInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = GreenPrimary)
-                }
-                Column {
-                    Text(text = "Bakaya", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "Rs. ${parcel.remainingBakaya.toInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (parcel.remainingBakaya > 0) RedError else MaterialTheme.colorScheme.onSurface)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (parcel.isDelivered) GreenPrimary.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = if (parcel.isDelivered) "Delivered" else "In Transit",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (parcel.isDelivered) GreenPrimary else AmberWarning
+                    )
                 }
             }
 
@@ -322,34 +338,21 @@ fun ParcelCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilledTonalButton(
-                        onClick = onToggleDelivered,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (parcel.isDelivered) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = if (parcel.isDelivered) "Delivered" else "Mark Done", fontSize = 11.sp)
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    OutlinedButton(
-                        onClick = onTogglePaid,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(text = if (parcel.isPaid) "Paid" else "Collect", fontSize = 11.sp)
-                    }
+                FilledTonalButton(
+                    onClick = onToggleDelivered,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (parcel.isDelivered) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = if (parcel.isDelivered) "Delivered" else "Mark Done", fontSize = 11.sp)
                 }
 
                 Row {
-                    IconButton(onClick = onViewCustomerLedger, modifier = Modifier.size(34.dp)) {
-                        Icon(imageVector = Icons.Default.History, contentDescription = "Ledger", tint = BluePrimary, modifier = Modifier.size(18.dp))
-                    }
                     IconButton(onClick = onWhatsApp, modifier = Modifier.size(34.dp)) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = "WhatsApp", tint = GreenPrimary, modifier = Modifier.size(18.dp))
                     }
@@ -361,14 +364,6 @@ fun ParcelCard(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = dateStr,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -390,6 +385,7 @@ fun DebtorCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
+            .clickable { onViewCustomerLedger() }
             .testTag("debtor_card_${debtor.id}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

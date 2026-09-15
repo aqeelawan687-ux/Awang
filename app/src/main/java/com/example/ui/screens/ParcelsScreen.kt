@@ -108,15 +108,11 @@ fun ParcelsScreen(
                         ParcelCard(
                             parcel = parcel,
                             onToggleDelivered = { onToggleDelivered(parcel) },
-                            onTogglePaid = { onTogglePaid(parcel) },
                             onEdit = { onEditParcel(parcel) },
                             onDelete = { onDeleteParcel(parcel) },
                             onWhatsApp = {
-                                val msg = "Assalam-o-Alaikum,\nParcel Delivery from ${parcel.senderName} to ${parcel.receiverName}.\nDelivery Address: ${parcel.deliveryAddress}\nCharges: Rs. ${parcel.deliveryCharges.toInt()}\nPaid: Rs. ${parcel.amountPaid.toInt()}\nStatus: ${if (parcel.isDelivered) "Delivered" else "In Transit"}\nAqeel Rider Services"
+                                val msg = "Assalam-o-Alaikum,\nParcel Delivery: ${parcel.senderName} ➔ ${parcel.receiverName}\nAddress: ${parcel.deliveryAddress}\nCharges: Rs. ${parcel.deliveryCharges.toInt()}\nStatus: ${if (parcel.isDelivered) "Delivered" else "In Transit"}\nAqeel Rider Services"
                                 ShareUtil.shareViaWhatsApp(context, parcel.receiverPhone.ifEmpty { parcel.senderPhone }, msg)
-                            },
-                            onViewCustomerLedger = {
-                                onViewCustomerLedger(parcel.senderName, parcel.senderPhone)
                             }
                         )
                     }
