@@ -24,9 +24,11 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -42,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.entity.DebtorEntity
 import com.example.data.entity.ParcelEntity
 import com.example.data.entity.RideEntity
@@ -227,6 +231,7 @@ fun ParcelCard(
     onViewCustomerLedger: () -> Unit = {}
 ) {
     val dateStr = DateTimeUtils.formatDateTime(parcel.date)
+    val totalCharges = parcel.samanCharges + parcel.deliveryCharges
 
     Card(
         modifier = Modifier
@@ -265,8 +270,16 @@ fun ParcelCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                        if (parcel.shopName.isNotBlank()) {
+                            Text(
+                                text = "🏪 Shop: ${parcel.shopName}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         Text(
-                            text = "To: ${parcel.receiverName}",
+                            text = "To: ${parcel.receiverName}${if (parcel.receiverPhone.isNotBlank()) " (${parcel.receiverPhone})" else ""}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -303,30 +316,52 @@ fun ParcelCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Financials Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Comprehensive Financials Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
             ) {
-                Column {
-                    Text(text = "Delivery Charges", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "Rs. ${parcel.deliveryCharges.toInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (parcel.isDelivered) GreenPrimary.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f)
-                ) {
-                    Text(
-                        text = if (parcel.isDelivered) "Delivered" else "In Transit",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (parcel.isDelivered) GreenPrimary else AmberWarning
-                    )
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Saman: Rs. ${parcel.samanCharges.toInt()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Delivery: Rs. ${parcel.deliveryCharges.toInt()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Total: Rs. ${totalCharges.toInt()}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Paid: Rs. ${parcel.amountPaid.toInt()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = GreenPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Bakaya: Rs. ${parcel.remainingBakaya.toInt()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (parcel.remainingBakaya > 0) RedError else GreenPrimary
+                        )
+                    }
                 }
             }
 
@@ -338,21 +373,34 @@ fun ParcelCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalButton(
-                    onClick = onToggleDelivered,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Icon(
-                        imageVector = if (parcel.isDelivered) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = if (parcel.isDelivered) "Delivered" else "Mark Done", fontSize = 11.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledTonalButton(
+                        onClick = onToggleDelivered,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (parcel.isDelivered) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = if (parcel.isDelivered) "Delivered" else "Mark Done", fontSize = 11.sp)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onTogglePaid,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(text = if (parcel.isPaid) "Paid" else "Unpaid", fontSize = 11.sp)
+                    }
                 }
 
                 Row {
+                    IconButton(onClick = onViewCustomerLedger, modifier = Modifier.size(34.dp)) {
+                        Icon(imageVector = Icons.Default.History, contentDescription = "Ledger", tint = BluePrimary, modifier = Modifier.size(18.dp))
+                    }
                     IconButton(onClick = onWhatsApp, modifier = Modifier.size(34.dp)) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = "WhatsApp", tint = GreenPrimary, modifier = Modifier.size(18.dp))
                     }
@@ -397,18 +445,57 @@ fun DebtorCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = debtor.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = debtor.phone,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Customer Photo / Avatar
+                    if (!debtor.photoUri.isNullOrBlank()) {
+                        AsyncImage(
+                            model = debtor.photoUri,
+                            contentDescription = "Customer Photo",
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .background(GreenPrimary.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = debtor.name.take(1).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = GreenPrimary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = debtor.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (debtor.phone.isNotBlank()) {
+                            Text(
+                                text = debtor.phone,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!debtor.address.isNullOrBlank()) {
+                            Text(
+                                text = "📍 ${debtor.address}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
                 Surface(
@@ -416,7 +503,7 @@ fun DebtorCard(
                     color = if (debtor.remainingDebt > 0) RedError.copy(alpha = 0.15f) else GreenPrimary.copy(alpha = 0.15f)
                 ) {
                     Text(
-                        text = if (debtor.remainingDebt > 0) "Rs. ${debtor.remainingDebt.toInt()} DUE" else "SETTLED",
+                        text = if (debtor.remainingDebt > 0) "Rs. ${debtor.remainingDebt.toInt()} BAKAYA" else "CLEAR (Rs. 0)",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,

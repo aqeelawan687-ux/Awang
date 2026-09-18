@@ -120,6 +120,18 @@ interface RiderDao {
     @Query("SELECT * FROM customer_history WHERE (LOWER(customerName) = LOWER(:name) OR (phone = :phone AND phone != '')) ORDER BY timestamp DESC")
     fun getHistoryForCustomer(name: String, phone: String): Flow<List<CustomerHistoryEntity>>
 
+    @Query("SELECT * FROM customer_history WHERE customerId = :customerId ORDER BY timestamp DESC")
+    fun getHistoryForCustomerId(customerId: Long): Flow<List<CustomerHistoryEntity>>
+
+    @Query("SELECT * FROM rides WHERE customerId = :customerId ORDER BY rideDate DESC")
+    fun getRidesForCustomerId(customerId: Long): Flow<List<RideEntity>>
+
+    @Query("SELECT * FROM parcels WHERE customerId = :customerId ORDER BY date DESC")
+    fun getParcelsForCustomerId(customerId: Long): Flow<List<ParcelEntity>>
+
+    @Query("DELETE FROM customer_history WHERE customerId = :customerId")
+    suspend fun deleteCustomerHistoryByCustomerId(customerId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomerHistory(history: CustomerHistoryEntity): Long
 

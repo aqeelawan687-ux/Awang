@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -20,8 +24,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -35,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,13 +52,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.entity.CustomerHistoryEntity
 import com.example.ui.components.AddEditParcelDialog
 import com.example.ui.components.AddEditRideDialog
+import com.example.ui.components.CustomerPdfSelectionDialog
 import com.example.ui.components.RecordPaymentDialog
 import com.example.ui.theme.BluePrimary
 import com.example.ui.theme.GreenPrimary
@@ -78,8 +91,10 @@ fun CustomerAccountScreen(
         dropoff: String,
         fare: Double,
         amountPaid: Double,
-        notes: String
-    ) -> Unit = { _, _, _, _, _, _, _ -> },
+        notes: String,
+        customerId: Long?,
+        rideDate: Long
+    ) -> Unit,
     onAddParcelForCustomer: (
         senderName: String,
         senderPhone: String,
@@ -87,33 +102,68 @@ fun CustomerAccountScreen(
         receiverPhone: String,
         pickupAddress: String,
         deliveryAddress: String,
+        shopName: String,
+        samanCharges: Double,
         deliveryCharges: Double,
         amountPaid: Double,
         isDelivered: Boolean,
-        notes: String
-    ) -> Unit = { _, _, _, _, _, _, _, _, _, _ -> }
+        notes: String,
+        customerId: Long?,
+        date: Long
+    ) -> Unit
 ) {
     val context = LocalContext.current
 
+    // Strict customer resolution by ID first, then fallback
     val debtor = state.allDebtors.find {
+        (state.selectedCustomerId != null && it.id == state.selectedCustomerId) ||
         it.name.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
     }
+
+    val customerId = debtor?.id ?: state.selectedCustomerId
+    val displayName = debtor?.name ?: customerName
+    val displayPhone = debtor?.phone ?: phone
+    val displayAddress = debtor?.address?.ifBlank { debtor.location } ?: ""
+    val photoUri = debtor?.photoUri
     val currentBakaya = debtor?.remainingDebt ?: 0.0
 
+    // Strict customer-isolated history
     val historyItems = state.customerHistory.filter {
-        it.customerName.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
+        if (customerId != null && it.customerId != null) {
+            it.customerId == customerId
+        } else {
+            it.customerName.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
+        }
+    }
+
+    // Customer specific stats
+    val customerRides = state.allRides.filter {
+        if (customerId != null && it.customerId != null) {
+            it.customerId == customerId
+        } else {
+            it.customerName.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.phone == phone)
+        }
+    }
+
+    val customerParcels = state.allParcels.filter {
+        if (customerId != null && it.customerId != null) {
+            it.customerId == customerId
+        } else {
+            it.senderName.equals(customerName, ignoreCase = true) || (phone.isNotEmpty() && it.senderPhone == phone)
+        }
     }
 
     var showEditBakayaDialog by remember { mutableStateOf(false) }
     var showAddPaymentDialog by remember { mutableStateOf(false) }
     var showAddRideDialog by remember { mutableStateOf(false) }
     var showAddParcelDialog by remember { mutableStateOf(false) }
+    var showPdfSelectionDialog by remember { mutableStateOf(false) }
     var newBakayaStr by remember { mutableStateOf(currentBakaya.toInt().toString()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(customerName, fontWeight = FontWeight.Bold) },
+                title = { Text(displayName, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
@@ -121,20 +171,13 @@ fun CustomerAccountScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        val file = PdfReportGenerator.generateCustomerLedgerPdf(
-                            context = context,
-                            customerName = customerName,
-                            phone = phone,
-                            remainingDebt = currentBakaya,
-                            history = historyItems
-                        )
-                        ShareUtil.sharePdf(context, file)
+                        showPdfSelectionDialog = true
                     }) {
                         Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = RedError)
                     }
                     IconButton(onClick = {
-                        val msg = "Assalam-o-Alaikum $customerName,\nYour current account statement with Aqeel Rider:\nOutstanding Balance (Bakaya): Rs. ${currentBakaya.toInt()}\nTotal activities logged: ${historyItems.size}\nThank you!"
-                        ShareUtil.shareViaWhatsApp(context, phone, msg)
+                        val msg = "Assalam-o-Alaikum $displayName,\nYour current account statement with Aqeel Rider:\nOutstanding Balance (Bakaya): Rs. ${currentBakaya.toInt()}\nTotal activities logged: ${historyItems.size}\nThank you!"
+                        ShareUtil.shareViaWhatsApp(context, displayPhone, msg)
                     }) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = "WhatsApp", tint = GreenPrimary)
                     }
@@ -151,22 +194,136 @@ fun CustomerAccountScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Outstanding Balance & Customer Financial Summary Card
+            // Outstanding Balance & Customer Profile Header Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Customer Phone: ${phone.ifEmpty { "N/A" }}", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Current Outstanding Bakaya: Rs. ${currentBakaya.toInt()}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (currentBakaya > 0) RedError else GreenPrimary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!photoUri.isNullOrBlank()) {
+                            AsyncImage(
+                                model = photoUri,
+                                contentDescription = "$displayName photo",
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(CircleShape)
+                                    .border(1.5.dp, GreenPrimary, CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = displayName.take(1).uppercase(),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (displayPhone.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(text = displayPhone, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            if (displayAddress.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(text = displayAddress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        // Outstanding Bakaya Badge
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = if (currentBakaya > 0) "BAKAYA" else "CLEARED",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentBakaya > 0) RedError else GreenPrimary
+                            )
+                            Text(
+                                text = "Rs. ${currentBakaya.toInt()}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentBakaya > 0) RedError else GreenPrimary
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
+
+                    // Stats row: Rides, Parcels, History
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(14.dp), tint = GreenPrimary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("${customerRides.size} Rides", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.size(14.dp), tint = BluePrimary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("${customerParcels.size} Parcels", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("${historyItems.size} Records", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Row 1 Actions: Add Ride & Add Saman / Parcel
                     Row(
@@ -257,14 +414,7 @@ fun CustomerAccountScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val file = PdfReportGenerator.generateCustomerLedgerPdf(
-                                    context = context,
-                                    customerName = customerName,
-                                    phone = phone,
-                                    remainingDebt = currentBakaya,
-                                    history = historyItems
-                                )
-                                ShareUtil.sharePdf(context, file)
+                                showPdfSelectionDialog = true
                             },
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier
@@ -279,8 +429,8 @@ fun CustomerAccountScreen(
 
                         OutlinedButton(
                             onClick = {
-                                val msg = "Assalam-o-Alaikum $customerName,\nYour current account statement with Aqeel Rider:\nOutstanding Balance (Bakaya): Rs. ${currentBakaya.toInt()}\nTotal activities logged: ${historyItems.size}\nThank you!"
-                                ShareUtil.shareViaWhatsApp(context, phone, msg)
+                                val msg = "Assalam-o-Alaikum $displayName,\nYour current account statement with Aqeel Rider:\nOutstanding Balance (Bakaya): Rs. ${currentBakaya.toInt()}\nTotal activities logged: ${historyItems.size}\nThank you!"
+                                ShareUtil.shareViaWhatsApp(context, displayPhone, msg)
                             },
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier
@@ -368,11 +518,13 @@ fun CustomerAccountScreen(
     if (showAddRideDialog) {
         AddEditRideDialog(
             rideToEdit = null,
+            existingCustomers = state.allDebtors,
+            preselectedCustomerId = customerId,
             onDismiss = { showAddRideDialog = false },
-            onConfirm = { cName, cPhone, pickup, dropoff, fare, paid, notes ->
-                val finalName = if (cName.isNotBlank() && cName != "Customer") cName else customerName
-                val finalPhone = if (cPhone.isNotBlank()) cPhone else phone
-                onAddRideForCustomer(finalName, finalPhone, pickup, dropoff, fare, paid, notes)
+            onConfirm = { cName, cPhone, pickup, dropoff, fare, paid, notes, cId, rideDate ->
+                val finalName = if (cName.isNotBlank() && cName != "Customer") cName else displayName
+                val finalPhone = if (cPhone.isNotBlank()) cPhone else displayPhone
+                onAddRideForCustomer(finalName, finalPhone, pickup, dropoff, fare, paid, notes, cId ?: customerId, rideDate)
                 showAddRideDialog = false
             }
         )
@@ -381,10 +533,12 @@ fun CustomerAccountScreen(
     if (showAddParcelDialog) {
         AddEditParcelDialog(
             parcelToEdit = null,
+            existingCustomers = state.allDebtors,
+            preselectedCustomerId = customerId,
             onDismiss = { showAddParcelDialog = false },
-            onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes ->
-                val finalSender = if (sName.isNotBlank() && sName != "Customer") sName else customerName
-                val finalSenderPhone = if (sPhone.isNotBlank()) sPhone else phone
+            onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, shopName, sCharges, dCharges, paid, isDelivered, notes, cId, pDate ->
+                val finalSender = if (sName.isNotBlank() && sName != "Customer") sName else displayName
+                val finalSenderPhone = if (sPhone.isNotBlank()) sPhone else displayPhone
                 onAddParcelForCustomer(
                     finalSender,
                     finalSenderPhone,
@@ -392,10 +546,14 @@ fun CustomerAccountScreen(
                     rPhone,
                     pickup,
                     delivery,
-                    charges,
+                    shopName,
+                    sCharges,
+                    dCharges,
                     paid,
                     isDelivered,
-                    notes
+                    notes,
+                    cId ?: customerId,
+                    pDate
                 )
                 showAddParcelDialog = false
             }
@@ -433,12 +591,80 @@ fun CustomerAccountScreen(
 
     if (showAddPaymentDialog) {
         RecordPaymentDialog(
-            debtorName = customerName,
+            debtorName = displayName,
             remainingDebt = currentBakaya,
             onDismiss = { showAddPaymentDialog = false },
             onConfirm = { amount, note ->
                 onRecordPayment(amount, note)
                 showAddPaymentDialog = false
+            }
+        )
+    }
+
+    if (showPdfSelectionDialog) {
+        val otherHistory = historyItems.filter { it.activityType != "RIDE" && it.activityType != "PARCEL" }
+        CustomerPdfSelectionDialog(
+            customerName = displayName,
+            customerRides = customerRides,
+            customerParcels = customerParcels,
+            otherHistory = otherHistory,
+            onDismiss = { showPdfSelectionDialog = false },
+            onGenerate = { selectedRideIds, selectedParcelIds, selectedOtherIds ->
+                // Map marked rides and parcels to their respective CustomerHistoryEntity IDs
+                val markedHistoryIds = mutableSetOf<Long>()
+
+                // Add explicitly marked other items (like direct payments or adjustments)
+                markedHistoryIds.addAll(selectedOtherIds)
+
+                // Match history items to rides and parcels
+                for (item in historyItems) {
+                    when (item.activityType) {
+                        "RIDE" -> {
+                            if (item.referenceId != null) {
+                                if (selectedRideIds.contains(item.referenceId)) {
+                                    markedHistoryIds.add(item.id)
+                                }
+                            } else {
+                                // If referenceId is null, match via details or check if any selected ride matches
+                                val rideMatch = customerRides.find { ride ->
+                                    selectedRideIds.contains(ride.id) &&
+                                    (item.details.contains(ride.pickupLocation) || item.amount == ride.fare)
+                                }
+                                if (rideMatch != null) {
+                                    markedHistoryIds.add(item.id)
+                                }
+                            }
+                        }
+                        "PARCEL" -> {
+                            if (item.referenceId != null) {
+                                if (selectedParcelIds.contains(item.referenceId)) {
+                                    markedHistoryIds.add(item.id)
+                                }
+                            } else {
+                                val parcelMatch = customerParcels.find { parcel ->
+                                    selectedParcelIds.contains(parcel.id) &&
+                                    (item.details.contains(parcel.deliveryAddress) || item.amount == parcel.totalCharges)
+                                }
+                                if (parcelMatch != null) {
+                                    markedHistoryIds.add(item.id)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val file = PdfReportGenerator.generateCustomerLedgerPdf(
+                    context = context,
+                    customerName = displayName,
+                    phone = displayPhone,
+                    remainingDebt = currentBakaya,
+                    history = historyItems,
+                    markedItemIds = markedHistoryIds,
+                    rides = customerRides,
+                    parcels = customerParcels
+                )
+                showPdfSelectionDialog = false
+                ShareUtil.sharePdf(context, file)
             }
         )
     }

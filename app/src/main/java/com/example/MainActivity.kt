@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity() {
                                     licenseState = licenseState,
                                     onCheckUpdate = {
                                         scope.launch {
-                                            updateManager.checkLatestUpdate()
+                                            updateManager.checkLatestUpdate(isManual = true)
                                             Toast.makeText(context, "Checking for latest updates...", Toast.LENGTH_SHORT).show()
                                         }
                                     },
@@ -158,34 +158,64 @@ class MainActivity : ComponentActivity() {
                                     state = uiState,
                                     onBack = { currentScreen = "MAIN" },
                                     onRecordPayment = { amount, note ->
-                                        viewModel.recordCustomerPayment(
-                                            uiState.selectedCustomerName ?: "Customer",
-                                            uiState.selectedCustomerPhone ?: "",
-                                            amount,
-                                            note
-                                        )
+                                        val customerId = uiState.selectedCustomerId
+                                        if (customerId != null) {
+                                            viewModel.recordPayment(customerId, amount, note)
+                                        } else {
+                                            viewModel.recordCustomerPayment(
+                                                uiState.selectedCustomerName ?: "Customer",
+                                                uiState.selectedCustomerPhone ?: "",
+                                                amount,
+                                                note
+                                            )
+                                        }
                                     },
                                     onUpdateBakaya = { newBakaya ->
-                                        viewModel.updateCustomerBakaya(
-                                            uiState.selectedCustomerName ?: "",
-                                            uiState.selectedCustomerPhone ?: "",
-                                            newBakaya
-                                        )
+                                        val customerId = uiState.selectedCustomerId
+                                        if (customerId != null) {
+                                            viewModel.updateCustomerBakayaById(customerId, newBakaya)
+                                        } else {
+                                            viewModel.updateCustomerBakaya(
+                                                uiState.selectedCustomerName ?: "",
+                                                uiState.selectedCustomerPhone ?: "",
+                                                newBakaya
+                                            )
+                                        }
                                     },
                                     onDeleteBakaya = {
-                                        viewModel.deleteCustomerBakaya(
-                                            uiState.selectedCustomerName ?: "",
-                                            uiState.selectedCustomerPhone ?: ""
-                                        )
+                                        val customerId = uiState.selectedCustomerId
+                                        if (customerId != null) {
+                                            viewModel.deleteCustomerBakayaById(customerId)
+                                        } else {
+                                            viewModel.deleteCustomerBakaya(
+                                                uiState.selectedCustomerName ?: "",
+                                                uiState.selectedCustomerPhone ?: ""
+                                            )
+                                        }
                                     },
                                     onDeleteHistoryItem = { item ->
                                         viewModel.deleteCustomerHistory(item)
                                     },
-                                    onAddRideForCustomer = { name, phone, pickup, dropoff, fare, paid, notes ->
-                                        viewModel.addRide(name, phone, pickup, dropoff, fare, paid, notes)
+                                    onAddRideForCustomer = { name, phone, pickup, dropoff, fare, paid, notes, cId, rideDate ->
+                                        viewModel.addRide(name, phone, pickup, dropoff, fare, paid, notes, cId ?: uiState.selectedCustomerId, rideDate)
                                     },
-                                    onAddParcelForCustomer = { sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes ->
-                                        viewModel.addParcel(sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes)
+                                    onAddParcelForCustomer = { sName, sPhone, rName, rPhone, pickup, delivery, shopName, sCharges, dCharges, paid, isDelivered, notes, cId, pDate ->
+                                        viewModel.addParcel(
+                                            senderName = sName,
+                                            senderPhone = sPhone,
+                                            receiverName = rName,
+                                            receiverPhone = rPhone,
+                                            pickupAddress = pickup,
+                                            deliveryAddress = delivery,
+                                            deliveryCharges = dCharges,
+                                            amountPaid = paid,
+                                            isDelivered = isDelivered,
+                                            notes = notes,
+                                            customerId = cId ?: uiState.selectedCustomerId,
+                                            shopName = shopName,
+                                            samanCharges = sCharges,
+                                            date = pDate
+                                        )
                                     }
                                 )
                             }
@@ -285,6 +315,24 @@ class MainActivity : ComponentActivity() {
                                                 onAddAccount = {
                                                     debtorToEdit = null
                                                     showAddDebtorDialog = true
+                                                },
+                                                onViewCustomerLedger = { debtor ->
+                                                    viewModel.selectCustomer(debtor)
+                                                    currentScreen = "CUSTOMER_ACCOUNT"
+                                                },
+                                                onRecordPayment = { debtor ->
+                                                    debtorForPayment = debtor
+                                                },
+                                                onEditCustomer = { debtor ->
+                                                    debtorToEdit = debtor
+                                                    showAddDebtorDialog = true
+                                                },
+                                                onDeleteCustomer = { debtor ->
+                                                    viewModel.deleteDebtor(debtor)
+                                                },
+                                                onWhatsAppCustomer = { debtor ->
+                                                    val msg = "Assalam-o-Alaikum ${debtor.name},\nYour current balance with Aqeel Rider is Rs. ${debtor.remainingDebt.toInt()}.\nThank you!"
+                                                    ShareUtil.shareViaWhatsApp(context, debtor.phone, msg)
                                                 }
                                             )
                                             "RIDES" -> RidesScreen(
@@ -301,7 +349,12 @@ class MainActivity : ComponentActivity() {
                                                 onSearchChange = { viewModel.setSearchQuery(it) },
                                                 onFilterChange = { viewModel.setRideFilter(it) },
                                                 onViewCustomerLedger = { name, phone ->
-                                                    viewModel.selectCustomer(name, phone)
+                                                    val d = uiState.allDebtors.find { it.name == name && it.phone == phone }
+                                                    if (d != null) {
+                                                        viewModel.selectCustomer(d)
+                                                    } else {
+                                                        viewModel.selectCustomer(name, phone)
+                                                    }
                                                     currentScreen = "CUSTOMER_ACCOUNT"
                                                 }
                                             )
@@ -321,7 +374,12 @@ class MainActivity : ComponentActivity() {
                                                 onSearchChange = { viewModel.setSearchQuery(it) },
                                                 onFilterChange = { viewModel.setParcelFilter(it) },
                                                 onViewCustomerLedger = { name, phone ->
-                                                    viewModel.selectCustomer(name, phone)
+                                                    val d = uiState.allDebtors.find { it.name == name && it.phone == phone }
+                                                    if (d != null) {
+                                                        viewModel.selectCustomer(d)
+                                                    } else {
+                                                        viewModel.selectCustomer(name, phone)
+                                                    }
                                                     currentScreen = "CUSTOMER_ACCOUNT"
                                                 }
                                             )
@@ -333,7 +391,12 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 onRecordPayment = { debtorForPayment = it },
                                                 onViewCustomerLedger = { name, phone ->
-                                                    viewModel.selectCustomer(name, phone)
+                                                    val d = uiState.allDebtors.find { it.name == name && it.phone == phone }
+                                                    if (d != null) {
+                                                        viewModel.selectCustomer(d)
+                                                    } else {
+                                                        viewModel.selectCustomer(name, phone)
+                                                    }
                                                     currentScreen = "CUSTOMER_ACCOUNT"
                                                 },
                                                 onEditDebtor = {
@@ -350,7 +413,12 @@ class MainActivity : ComponentActivity() {
                                             "HISTORY" -> CustomerHistoryScreen(
                                                 state = uiState,
                                                 onSelectCustomer = { name, phone ->
-                                                    viewModel.selectCustomer(name, phone)
+                                                    val d = uiState.allDebtors.find { it.name == name && it.phone == phone }
+                                                    if (d != null) {
+                                                        viewModel.selectCustomer(d)
+                                                    } else {
+                                                        viewModel.selectCustomer(name, phone)
+                                                    }
                                                     currentScreen = "CUSTOMER_ACCOUNT"
                                                 },
                                                 onDeleteHistoryItem = { viewModel.deleteCustomerHistory(it) },
@@ -366,11 +434,12 @@ class MainActivity : ComponentActivity() {
                         if (showAddRideDialog) {
                             AddEditRideDialog(
                                 rideToEdit = rideToEdit,
+                                existingCustomers = uiState.allDebtors,
                                 onDismiss = {
                                     showAddRideDialog = false
                                     rideToEdit = null
                                 },
-                                onConfirm = { name, phone, pickup, dropoff, fare, paid, notes ->
+                                onConfirm = { name, phone, pickup, dropoff, fare, paid, notes, customerId, rideDate ->
                                     if (rideToEdit != null) {
                                         val remaining = (fare - paid).coerceAtLeast(0.0)
                                         val paymentStatus = when {
@@ -380,6 +449,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                         viewModel.updateRide(
                                             rideToEdit!!.copy(
+                                                customerId = customerId ?: rideToEdit!!.customerId,
                                                 customerName = name,
                                                 phone = phone,
                                                 pickupLocation = pickup,
@@ -388,12 +458,12 @@ class MainActivity : ComponentActivity() {
                                                 paymentStatus = paymentStatus,
                                                 amountPaid = paid,
                                                 remainingBakaya = remaining,
-                                                rideDate = rideToEdit!!.rideDate,
+                                                rideDate = rideDate,
                                                 notes = notes
                                             )
                                         )
                                     } else {
-                                        viewModel.addRide(name, phone, pickup, dropoff, fare, paid, notes)
+                                        viewModel.addRide(name, phone, pickup, dropoff, fare, paid, notes, customerId, rideDate)
                                     }
                                     showAddRideDialog = false
                                     rideToEdit = null
@@ -404,32 +474,52 @@ class MainActivity : ComponentActivity() {
                         if (showAddParcelDialog) {
                             AddEditParcelDialog(
                                 parcelToEdit = parcelToEdit,
+                                existingCustomers = uiState.allDebtors,
                                 onDismiss = {
                                     showAddParcelDialog = false
                                     parcelToEdit = null
                                 },
-                                onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes ->
+                                onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, shopName, sCharges, dCharges, paid, isDelivered, notes, customerId, date ->
                                     if (parcelToEdit != null) {
-                                        val remaining = (charges - paid).coerceAtLeast(0.0)
+                                        val total = sCharges + dCharges
+                                        val remaining = (total - paid).coerceAtLeast(0.0)
                                         viewModel.updateParcel(
                                             parcelToEdit!!.copy(
+                                                customerId = customerId ?: parcelToEdit!!.customerId,
                                                 senderName = sName,
                                                 senderPhone = sPhone,
                                                 receiverName = rName,
                                                 receiverPhone = rPhone,
                                                 pickupAddress = pickup,
                                                 deliveryAddress = delivery,
-                                                deliveryCharges = charges,
+                                                shopName = shopName,
+                                                samanCharges = sCharges,
+                                                deliveryCharges = dCharges,
                                                 amountPaid = paid,
                                                 remainingBakaya = remaining,
                                                 isDelivered = isDelivered,
                                                 isPaid = remaining <= 0,
-                                                date = parcelToEdit!!.date,
+                                                date = date,
                                                 notes = notes
                                             )
                                         )
                                     } else {
-                                        viewModel.addParcel(sName, sPhone, rName, rPhone, pickup, delivery, charges, paid, isDelivered, notes)
+                                        viewModel.addParcel(
+                                            senderName = sName,
+                                            senderPhone = sPhone,
+                                            receiverName = rName,
+                                            receiverPhone = rPhone,
+                                            pickupAddress = pickup,
+                                            deliveryAddress = delivery,
+                                            deliveryCharges = dCharges,
+                                            amountPaid = paid,
+                                            isDelivered = isDelivered,
+                                            notes = notes,
+                                            customerId = customerId,
+                                            shopName = shopName,
+                                            samanCharges = sCharges,
+                                            date = date
+                                        )
                                     }
                                     showAddParcelDialog = false
                                     parcelToEdit = null
@@ -444,18 +534,30 @@ class MainActivity : ComponentActivity() {
                                     showAddDebtorDialog = false
                                     debtorToEdit = null
                                 },
-                                onConfirm = { name, phone, debt, notes ->
+                                onConfirm = { name, phone, debt, notes, address, photoUri ->
                                     if (debtorToEdit != null) {
                                         viewModel.updateDebtor(
                                             debtorToEdit!!.copy(
                                                 name = name,
                                                 phone = phone,
+                                                address = address,
+                                                location = address,
+                                                photoUri = photoUri,
                                                 remainingDebt = debt,
-                                                notes = notes
+                                                notes = notes,
+                                                lastUpdated = System.currentTimeMillis()
                                             )
                                         )
                                     } else {
-                                        viewModel.addDebtor(name, phone, debt, notes)
+                                        viewModel.addCustomer(
+                                            name = name,
+                                            phone = phone,
+                                            address = address,
+                                            location = address,
+                                            photoUri = photoUri,
+                                            initialBalance = debt,
+                                            notes = notes
+                                        )
                                     }
                                     showAddDebtorDialog = false
                                     debtorToEdit = null

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -18,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.GreenPrimary
 import com.example.util.UpdateState
 
 @Composable
@@ -107,6 +109,27 @@ fun AppUpdateDialog(
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
                         Text("Later")
+                    }
+                }
+            )
+        }
+        is UpdateState.UpToDate -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = GreenPrimary
+                    )
+                },
+                title = { Text(text = "App Up to Date", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(text = "You are already using the latest version of Aqeel Rider (v1.3.3). No updates needed.")
+                },
+                confirmButton = {
+                    Button(onClick = onDismiss) {
+                        Text("OK")
                     }
                 }
             )

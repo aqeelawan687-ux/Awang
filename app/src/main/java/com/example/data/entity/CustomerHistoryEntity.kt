@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class CustomerHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val customerId: Long? = null,
     val customerName: String,
     val phone: String,
     val activityType: String, // "RIDE", "PARCEL", "PAYMENT", "DEBT_ADDED"

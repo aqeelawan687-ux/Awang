@@ -143,7 +143,10 @@ object PdfReportGenerator {
         customerName: String,
         phone: String,
         remainingDebt: Double,
-        history: List<CustomerHistoryEntity>
+        history: List<CustomerHistoryEntity>,
+        markedItemIds: Set<Long>? = null,
+        rides: List<RideEntity> = emptyList(),
+        parcels: List<ParcelEntity> = emptyList()
     ): File {
         val pdfDocument = PdfDocument()
         val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
@@ -198,10 +201,30 @@ object PdfReportGenerator {
         canvas.drawText("Outstanding Balance (Bakaya): Rs. ${remainingDebt.toInt()}", 30f, y, redPaint)
         y += 25f
 
-        canvas.drawText("Transaction & Ledger History (${history.size} records):", 30f, y, boldPaint)
+        // Calculate Totals across ALL items (marked + unmarked)
+        val totalRidesFare = rides.sumOf { it.fare }
+        val totalRidesBakaya = rides.sumOf { it.remainingBakaya }
+        val totalParcelsCharges = parcels.sumOf { it.totalCharges }
+        val totalParcelsBakaya = parcels.sumOf { it.remainingBakaya }
+
+        // Filter history rows for display based on markedItemIds
+        val displayHistory = if (markedItemIds != null) {
+            history.filter { markedItemIds.contains(it.id) }
+        } else {
+            history
+        }
+
+        val unmarkedCount = history.size - displayHistory.size
+        val summaryNote = if (unmarkedCount > 0) {
+            "Showing ${displayHistory.size} marked transactions (${unmarkedCount} details omitted; totals include all transactions):"
+        } else {
+            "Transaction & Ledger History (${displayHistory.size} records):"
+        }
+
+        canvas.drawText(summaryNote, 30f, y, boldPaint)
         y += 20f
 
-        for (item in history) {
+        for (item in displayHistory) {
             if (y > 780f) {
                 // Draw footer on current page
                 canvas.drawLine(30f, 800f, 565f, 800f, footerLinePaint)
@@ -229,6 +252,45 @@ object PdfReportGenerator {
             val printableLine = if (line.length > 95) line.substring(0, 92) + "..." else line
             canvas.drawText(printableLine, 30f, y, textPaint)
             y += 18f
+        }
+
+        // Summary block if space permits
+        if (rides.isNotEmpty() || parcels.isNotEmpty()) {
+            if (y > 730f) {
+                canvas.drawLine(30f, 800f, 565f, 800f, footerLinePaint)
+                canvas.drawText("Aqeel Rider Services • Page $pageNum", 30f, 815f, footerTextPaint)
+                pdfDocument.finishPage(page)
+
+                pageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                y = 65f
+            } else {
+                y += 15f
+            }
+
+            val summaryPaint = Paint().apply {
+                color = Color.rgb(241, 245, 249)
+            }
+            canvas.drawRect(30f, y, 565f, y + 45f, summaryPaint)
+            val summaryTextPaint = Paint().apply {
+                color = Color.rgb(30, 41, 59)
+                textSize = 9.5f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            }
+            canvas.drawText(
+                "TOTALS SUMMARY: Total Rides Fare: Rs. ${totalRidesFare.toInt()} (Bakaya: ${totalRidesBakaya.toInt()})",
+                40f,
+                y + 20f,
+                summaryTextPaint
+            )
+            canvas.drawText(
+                "Total Parcels/Delivery: Rs. ${totalParcelsCharges.toInt()} (Bakaya: ${totalParcelsBakaya.toInt()}) • Grand Outstanding: Rs. ${remainingDebt.toInt()}",
+                40f,
+                y + 36f,
+                summaryTextPaint
+            )
         }
 
         // Footer on last page

@@ -31,6 +31,7 @@ data class RiderUiState(
     val rideFilter: String = "ALL", // ALL, TODAY, UNPAID
     val parcelFilter: String = "ALL", // ALL, PENDING, DELIVERED
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val selectedCustomerId: Long? = null,
     val selectedCustomerName: String? = null,
     val selectedCustomerPhone: String? = null
 ) {
@@ -38,7 +39,7 @@ data class RiderUiState(
     val totalRidePaid: Double get() = allRides.sumOf { it.amountPaid }
     val totalRideBakaya: Double get() = allRides.sumOf { it.remainingBakaya }
 
-    val totalParcelCharges: Double get() = allParcels.sumOf { it.deliveryCharges }
+    val totalParcelCharges: Double get() = allParcels.sumOf { it.deliveryCharges + it.samanCharges }
     val totalParcelPaid: Double get() = allParcels.sumOf { it.amountPaid }
     val totalParcelBakaya: Double get() = allParcels.sumOf { it.remainingBakaya }
     val totalDeliveredParcels: Int get() = allParcels.count { it.isDelivered }
@@ -50,6 +51,12 @@ data class RiderUiState(
     val netCashInHand: Double get() = totalRidePaid + totalParcelPaid + totalRecoveredCash
 }
 
+data class CustomerSelection(
+    val id: Long? = null,
+    val name: String? = null,
+    val phone: String? = null
+)
+
 class RiderViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: RiderRepository
@@ -57,7 +64,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     private val rideFilterFlow = MutableStateFlow("ALL")
     private val parcelFilterFlow = MutableStateFlow("ALL")
     private val themeModeFlow = MutableStateFlow(AppThemeMode.SYSTEM)
-    private val selectedCustomerFlow = MutableStateFlow<Pair<String?, String?>>(null to null)
+    private val selectedCustomerFlow = MutableStateFlow(CustomerSelection())
 
     init {
         val database = AppDatabase.getDatabase(application)
@@ -91,7 +98,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         SearchPrefs(query, rideF, parcelF)
     }
 
-    private data class UiPrefs(val theme: AppThemeMode, val customer: Pair<String?, String?>)
+    private data class UiPrefs(val theme: AppThemeMode, val customer: CustomerSelection)
     private val uiPrefsFlow = combine(
         themeModeFlow,
         selectedCustomerFlow
@@ -125,7 +132,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                     parcel.senderName.lowercase().contains(q) ||
                     parcel.senderPhone.contains(q) ||
                     parcel.receiverName.lowercase().contains(q) ||
-                    parcel.deliveryAddress.lowercase().contains(q)
+                    parcel.deliveryAddress.lowercase().contains(q) ||
+                    parcel.shopName.lowercase().contains(q)
 
             val matchesFilter = when (search.parcelFilter) {
                 "PENDING" -> !parcel.isDelivered
@@ -137,7 +145,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val filteredDebtors = db.debtors.filter { debtor ->
-            q.isEmpty() || debtor.name.lowercase().contains(q) || debtor.phone.contains(q)
+            q.isEmpty() || debtor.name.lowercase().contains(q) || debtor.phone.contains(q) || (debtor.address?.lowercase()?.contains(q) == true)
         }
 
         RiderUiState(
@@ -153,8 +161,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             rideFilter = search.rideFilter,
             parcelFilter = search.parcelFilter,
             themeMode = ui.theme,
-            selectedCustomerName = ui.customer.first,
-            selectedCustomerPhone = ui.customer.second
+            selectedCustomerId = ui.customer.id,
+            selectedCustomerName = ui.customer.name,
+            selectedCustomerPhone = ui.customer.phone
         )
     }.stateIn(
         scope = viewModelScope,
@@ -179,7 +188,15 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectCustomer(name: String?, phone: String?) {
-        selectedCustomerFlow.value = name to phone
+        selectedCustomerFlow.value = CustomerSelection(null, name, phone)
+    }
+
+    fun selectCustomer(id: Long?, name: String?, phone: String?) {
+        selectedCustomerFlow.value = CustomerSelection(id, name, phone)
+    }
+
+    fun selectCustomer(debtor: DebtorEntity?) {
+        selectedCustomerFlow.value = CustomerSelection(debtor?.id, debtor?.name, debtor?.phone)
     }
 
     // Rides CRUD
@@ -190,7 +207,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         dropoff: String,
         fare: Double,
         amountPaid: Double,
-        notes: String = ""
+        notes: String = "",
+        customerId: Long? = null,
+        rideDate: Long = System.currentTimeMillis()
     ) {
         viewModelScope.launch {
             val remaining = (fare - amountPaid).coerceAtLeast(0.0)
@@ -200,6 +219,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                 else -> "UNPAID"
             }
             val ride = RideEntity(
+                customerId = customerId,
                 customerName = customerName.trim(),
                 phone = phone.trim(),
                 pickupLocation = pickup.trim(),
@@ -208,7 +228,7 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
                 paymentStatus = paymentStatus,
                 amountPaid = amountPaid,
                 remainingBakaya = remaining,
-                rideDate = System.currentTimeMillis(),
+                rideDate = rideDate,
                 notes = notes.trim()
             )
             repository.addRide(ride)
@@ -238,23 +258,31 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         deliveryCharges: Double,
         amountPaid: Double,
         isDelivered: Boolean = false,
-        notes: String = ""
+        notes: String = "",
+        customerId: Long? = null,
+        shopName: String = "",
+        samanCharges: Double = 0.0,
+        date: Long = System.currentTimeMillis()
     ) {
         viewModelScope.launch {
-            val remaining = (deliveryCharges - amountPaid).coerceAtLeast(0.0)
+            val total = samanCharges + deliveryCharges
+            val remaining = (total - amountPaid).coerceAtLeast(0.0)
             val parcel = ParcelEntity(
+                customerId = customerId,
                 senderName = senderName.trim(),
                 senderPhone = senderPhone.trim(),
                 receiverName = receiverName.trim(),
                 receiverPhone = receiverPhone.trim(),
                 pickupAddress = pickupAddress.trim(),
                 deliveryAddress = deliveryAddress.trim(),
+                shopName = shopName.trim(),
+                samanCharges = samanCharges,
                 deliveryCharges = deliveryCharges,
                 isDelivered = isDelivered,
                 isPaid = remaining <= 0,
                 amountPaid = amountPaid,
                 remainingBakaya = remaining,
-                date = System.currentTimeMillis(),
+                date = date,
                 notes = notes.trim()
             )
             repository.addParcel(parcel)
@@ -277,8 +305,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleParcelPaid(parcel: ParcelEntity) {
         viewModelScope.launch {
             val newIsPaid = !parcel.isPaid
-            val newPaid = if (newIsPaid) parcel.deliveryCharges else 0.0
-            val newBakaya = if (newIsPaid) 0.0 else parcel.deliveryCharges
+            val total = parcel.samanCharges + parcel.deliveryCharges
+            val newPaid = if (newIsPaid) total else 0.0
+            val newBakaya = if (newIsPaid) 0.0 else total
             val updated = parcel.copy(isPaid = newIsPaid, amountPaid = newPaid, remainingBakaya = newBakaya)
             repository.updateParcel(updated)
         }
@@ -290,7 +319,32 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Debtors & Payments
+    // Debtors & Customers
+    fun addCustomer(
+        name: String,
+        phone: String,
+        address: String = "",
+        location: String = "",
+        photoUri: String? = null,
+        initialBalance: Double = 0.0,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val debtor = DebtorEntity(
+                name = name.trim(),
+                phone = phone.trim(),
+                address = address.trim(),
+                location = location.trim(),
+                photoUri = photoUri,
+                totalDebt = initialBalance,
+                remainingDebt = initialBalance,
+                lastUpdated = System.currentTimeMillis(),
+                notes = notes.trim()
+            )
+            repository.addDebtor(debtor)
+        }
+    }
+
     fun addDebtor(name: String, phone: String, totalDebt: Double, notes: String = "") {
         viewModelScope.launch {
             val debtor = DebtorEntity(
@@ -338,6 +392,18 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     fun deletePayment(payment: PaymentHistoryEntity) {
         viewModelScope.launch {
             repository.deletePayment(payment)
+        }
+    }
+
+    fun updateCustomerBakayaById(customerId: Long, newBakaya: Double) {
+        viewModelScope.launch {
+            repository.updateCustomerBakayaById(customerId, newBakaya)
+        }
+    }
+
+    fun deleteCustomerBakayaById(customerId: Long) {
+        viewModelScope.launch {
+            repository.deleteCustomerBakayaById(customerId)
         }
     }
 

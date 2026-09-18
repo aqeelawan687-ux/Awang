@@ -40,47 +40,117 @@ class ApkUpdateManager(private val context: Context) {
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
 
+    companion object {
+        const val GITHUB_RELEASES_API = "https://api.github.com/repos/aqeelawan687-ux/Awang/releases/latest"
+        private const val PREFS_NAME = "apk_update_prefs"
+        private const val KEY_LAST_CHECK = "last_background_check_time"
+        private const val THROTTLE_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 hours throttle for auto check
+    }
+
+    /**
+     * Checks for app updates from GitHub Releases API.
+     * @param isManual If true, bypasses 6-hour throttle and shows toast/dialog even if up to date or error occurs.
+     */
     suspend fun checkLatestUpdate(
-        updateJsonUrl: String = "https://raw.githubusercontent.com/aqeelawan687/AqeelRiderUpdates/main/version.json",
+        isManual: Boolean = false,
         currentVersionCode: Int = 133
     ) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+
+        if (!isManual) {
+            val lastCheck = prefs.getLong(KEY_LAST_CHECK, 0L)
+            if (now - lastCheck < THROTTLE_INTERVAL_MS) {
+                // Throttle active, keep Idle
+                return
+            }
+        }
+
         _updateState.value = UpdateState.Checking
         withContext(Dispatchers.IO) {
             try {
-                val url = URL(updateJsonUrl)
+                val url = URL(GITHUB_RELEASES_API)
                 val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
                 conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                conn.setRequestProperty("User-Agent", "AqeelRider-Android-App")
 
-                if (conn.responseCode == 200) {
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    // Record check time on successful query
+                    prefs.edit().putLong(KEY_LAST_CHECK, now).apply()
+
                     val text = conn.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(text)
-                    val remoteCode = json.optInt("versionCode", 1)
-                    val remoteName = json.optString("versionName", "1.0")
-                    val releaseNotes = json.optString("changelog", "Bug fixes and performance improvements")
-                    val apkUrl = json.optString("apkUrl", "")
-                    val isMandatory = json.optBoolean("mandatory", false)
+                    val tagName = json.optString("tag_name", "").trim()
+                    val body = json.optString("body", "")
+                    val releaseName = json.optString("name", tagName)
 
-                    if (remoteCode > currentVersionCode) {
+                    // Extract version name from tag (e.g., "v1.3.3" -> "1.3.3")
+                    val remoteVersionName = if (tagName.startsWith("v", ignoreCase = true)) {
+                        tagName.substring(1).trim()
+                    } else if (tagName.isNotEmpty()) {
+                        tagName
+                    } else {
+                        "1.3.3"
+                    }
+
+                    // Extract versionCode from release body (e.g., "**versionCode**: 133" or "versionCode: 133")
+                    var remoteCode = 0
+                    val codeRegex = Regex("""(?i)versionCode\s*[:=*\s]+(\d+)""")
+                    val codeMatch = codeRegex.find(body)
+                    if (codeMatch != null) {
+                        remoteCode = codeMatch.groupValues[1].toIntOrNull() ?: 0
+                    }
+
+                    // Fallback to deriving code from semantic version if not found in body (e.g. 1.3.4 -> 134)
+                    if (remoteCode == 0) {
+                        val digits = remoteVersionName.filter { it.isDigit() }
+                        remoteCode = digits.toIntOrNull() ?: 0
+                    }
+
+                    // Dynamically extract APK download URL from assets strictly matching app-release.apk
+                    var apkUrl = ""
+                    val assets = json.optJSONArray("assets")
+                    if (assets != null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            val downloadUrl = asset.optString("browser_download_url", "")
+                            if (name.equals("app-release.apk", ignoreCase = true)) {
+                                apkUrl = downloadUrl
+                                break
+                            }
+                        }
+                    }
+
+                    val releaseNotes = if (body.isNotBlank()) body else "Latest updates and performance improvements for Aqeel Rider."
+
+                    if (remoteCode > currentVersionCode && apkUrl.isNotEmpty()) {
                         _updateState.value = UpdateState.UpdateAvailable(
                             UpdateInfo(
                                 versionCode = remoteCode,
-                                versionName = remoteName,
+                                versionName = remoteVersionName,
                                 releaseNotes = releaseNotes,
                                 downloadUrl = apkUrl,
-                                isMandatory = isMandatory
+                                isMandatory = false
                             )
                         )
                     } else {
-                        _updateState.value = UpdateState.UpToDate
+                        _updateState.value = if (isManual) UpdateState.UpToDate else UpdateState.Idle
                     }
                 } else {
-                    _updateState.value = UpdateState.UpToDate
+                    val errMsg = "GitHub API request failed (HTTP $responseCode)"
+                    _updateState.value = if (isManual) UpdateState.Error(errMsg) else UpdateState.Idle
                 }
-            } catch (_: Exception) {
-                // If offline or invalid URL, keep app usable
-                _updateState.value = UpdateState.Idle
+            } catch (e: Exception) {
+                if (isManual) {
+                    _updateState.value = UpdateState.Error("Network error: ${e.message ?: "Unable to check updates"}")
+                } else {
+                    _updateState.value = UpdateState.Idle
+                }
             }
         }
     }
@@ -89,11 +159,43 @@ class ApkUpdateManager(private val context: Context) {
         _updateState.value = UpdateState.Downloading(0)
         withContext(Dispatchers.IO) {
             try {
-                val url = URL(downloadUrl)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 10000
-                conn.readTimeout = 15000
-                conn.connect()
+                var currentUrl = downloadUrl
+                var conn: HttpURLConnection
+                var redirectCount = 0
+                val maxRedirects = 5
+
+                // Handle redirects (e.g., GitHub 302 -> AWS S3 / Azure Blob)
+                while (true) {
+                    val url = URL(currentUrl)
+                    conn = url.openConnection() as HttpURLConnection
+                    conn.instanceFollowRedirects = false
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 20000
+                    conn.setRequestProperty("User-Agent", "AqeelRider-Android-App")
+                    conn.connect()
+
+                    val responseCode = conn.responseCode
+                    if (responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
+                        responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
+                        responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
+                        responseCode == 307 || responseCode == 308) {
+                        val newLocation = conn.getHeaderField("Location")
+                        conn.disconnect()
+                        if (!newLocation.isNullOrEmpty() && redirectCount < maxRedirects) {
+                            currentUrl = newLocation
+                            redirectCount++
+                            continue
+                        }
+                    }
+                    break
+                }
+
+                val finalResponseCode = conn.responseCode
+                if (finalResponseCode !in 200..299) {
+                    conn.disconnect()
+                    _updateState.value = UpdateState.Error("Download failed with HTTP status $finalResponseCode")
+                    return@withContext
+                }
 
                 val fileLength = conn.contentLength
                 val outputFile = File(context.cacheDir, "update.apk")
@@ -102,14 +204,14 @@ class ApkUpdateManager(private val context: Context) {
                 val input = conn.inputStream
                 val output = FileOutputStream(outputFile)
 
-                val data = ByteArray(4096)
+                val data = ByteArray(8192)
                 var total: Long = 0
                 var count: Int
 
                 while (input.read(data).also { count = it } != -1) {
                     total += count
                     if (fileLength > 0) {
-                        val progress = ((total * 100) / fileLength).toInt()
+                        val progress = ((total * 100) / fileLength).toInt().coerceIn(0, 100)
                         _updateState.value = UpdateState.Downloading(progress)
                     }
                     output.write(data, 0, count)
@@ -118,8 +220,13 @@ class ApkUpdateManager(private val context: Context) {
                 output.flush()
                 output.close()
                 input.close()
+                conn.disconnect()
 
-                _updateState.value = UpdateState.Downloaded(outputFile)
+                if (outputFile.exists() && outputFile.length() > 0) {
+                    _updateState.value = UpdateState.Downloaded(outputFile)
+                } else {
+                    _updateState.value = UpdateState.Error("Downloaded file is empty or corrupted")
+                }
             } catch (e: Exception) {
                 _updateState.value = UpdateState.Error(e.message ?: "Failed to download update")
             }
@@ -127,7 +234,10 @@ class ApkUpdateManager(private val context: Context) {
     }
 
     fun installApk(apkFile: File) {
-        if (!apkFile.exists()) return
+        if (!apkFile.exists() || apkFile.length() == 0L) {
+            _updateState.value = UpdateState.Error("APK file not found or invalid.")
+            return
+        }
         try {
             _updateState.value = UpdateState.Installing
             val apkUri: Uri = FileProvider.getUriForFile(

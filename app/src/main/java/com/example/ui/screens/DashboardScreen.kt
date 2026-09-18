@@ -35,6 +35,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.entity.DebtorEntity
+import com.example.ui.components.DebtorCard
 import com.example.ui.components.StatBox
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.BluePrimary
@@ -52,7 +55,12 @@ fun DashboardScreen(
     onNavigateToReports: () -> Unit,
     onQuickAddRide: () -> Unit,
     onQuickAddParcel: () -> Unit,
-    onAddAccount: () -> Unit = {}
+    onAddAccount: () -> Unit = {},
+    onViewCustomerLedger: (DebtorEntity) -> Unit = {},
+    onRecordPayment: (DebtorEntity) -> Unit = {},
+    onEditCustomer: (DebtorEntity) -> Unit = {},
+    onDeleteCustomer: (DebtorEntity) -> Unit = {},
+    onWhatsAppCustomer: (DebtorEntity) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -259,6 +267,79 @@ fun DashboardScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Customer Accounts Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Customer Accounts (${state.debtors.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Button(
+                    onClick = onAddAccount,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                ) {
+                    Icon(imageVector = Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Customer", fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Customer Accounts List on Dashboard
+        if (state.debtors.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No Customer Accounts Yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap 'Add Account' above to create your first customer profile.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            items(state.debtors.size) { index ->
+                val debtor = state.debtors[index]
+                DebtorCard(
+                    debtor = debtor,
+                    onRecordPayment = { onRecordPayment(debtor) },
+                    onViewCustomerLedger = { onViewCustomerLedger(debtor) },
+                    onWhatsApp = { onWhatsAppCustomer(debtor) },
+                    onEdit = { onEditCustomer(debtor) },
+                    onDelete = { onDeleteCustomer(debtor) }
+                )
+            }
+        }
+
+        item {
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

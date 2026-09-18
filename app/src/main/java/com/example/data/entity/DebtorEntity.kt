@@ -12,5 +12,8 @@ data class DebtorEntity(
     val totalDebt: Double,
     val remainingDebt: Double,
     val lastUpdated: Long = System.currentTimeMillis(),
-    val notes: String = ""
+    val notes: String = "",
+    val photoUri: String? = null,
+    val address: String? = null,
+    val location: String? = null
 )

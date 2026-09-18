@@ -27,6 +27,15 @@ class RiderRepository(
     fun getCustomerHistory(name: String, phone: String): Flow<List<CustomerHistoryEntity>> =
         dao.getHistoryForCustomer(name, phone)
 
+    fun getCustomerHistoryById(customerId: Long): Flow<List<CustomerHistoryEntity>> =
+        dao.getHistoryForCustomerId(customerId)
+
+    fun getRidesForCustomerId(customerId: Long): Flow<List<RideEntity>> =
+        dao.getRidesForCustomerId(customerId)
+
+    fun getParcelsForCustomerId(customerId: Long): Flow<List<ParcelEntity>> =
+        dao.getParcelsForCustomerId(customerId)
+
     private suspend fun <T> runInTransaction(block: suspend () -> T): T {
         return if (database != null) {
             database.withTransaction { block() }
@@ -36,34 +45,42 @@ class RiderRepository(
     }
 
     suspend fun addRide(ride: RideEntity): Long = runInTransaction {
-        val rideId = dao.insertRide(ride)
-        val remaining = ride.remainingBakaya
-        if (remaining > 0) {
-            val existing = dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
-            if (existing != null) {
+        val debtor = if (ride.customerId != null && ride.customerId > 0) {
+            dao.getDebtorById(ride.customerId)
+        } else {
+            dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
+        }
+        val resolvedCustomerId = if (debtor != null) {
+            if (ride.remainingBakaya > 0) {
                 dao.updateDebtor(
-                    existing.copy(
-                        totalDebt = existing.totalDebt + remaining,
-                        remainingDebt = existing.remainingDebt + remaining,
+                    debtor.copy(
+                        totalDebt = debtor.totalDebt + ride.remainingBakaya,
+                        remainingDebt = debtor.remainingDebt + ride.remainingBakaya,
                         lastUpdated = System.currentTimeMillis()
                     )
                 )
-            } else {
-                dao.insertDebtor(
-                    DebtorEntity(
-                        name = ride.customerName,
-                        phone = ride.phone,
-                        totalDebt = remaining,
-                        remainingDebt = remaining,
-                        lastUpdated = System.currentTimeMillis(),
-                        notes = "Auto-created from Ride #${rideId}"
-                    )
-                )
             }
+            debtor.id
+        } else {
+            dao.insertDebtor(
+                DebtorEntity(
+                    name = ride.customerName.ifBlank { "Customer" },
+                    phone = ride.phone,
+                    totalDebt = ride.remainingBakaya,
+                    remainingDebt = ride.remainingBakaya,
+                    lastUpdated = System.currentTimeMillis(),
+                    notes = "Auto-created from Ride"
+                )
+            )
         }
+
+        val effectiveRide = ride.copy(customerId = resolvedCustomerId)
+        val rideId = dao.insertRide(effectiveRide)
+
         val historyDetails = "Ride from ${ride.pickupLocation} to ${ride.dropoffLocation} (Fare: Rs. ${ride.fare.toInt()}, Paid: Rs. ${ride.amountPaid.toInt()}, Bakaya: Rs. ${ride.remainingBakaya.toInt()})"
         dao.insertCustomerHistory(
             CustomerHistoryEntity(
+                customerId = resolvedCustomerId,
                 customerName = ride.customerName,
                 phone = ride.phone,
                 activityType = "RIDE",
@@ -80,15 +97,17 @@ class RiderRepository(
     suspend fun updateRide(ride: RideEntity) = runInTransaction {
         val oldRide = dao.getRideById(ride.id)
         if (oldRide != null) {
-            val preservedDate = oldRide.rideDate
-            val updatedRide = ride.copy(rideDate = preservedDate)
+            val updatedRide = ride
 
-            val customerChanged = !oldRide.customerName.equals(updatedRide.customerName, ignoreCase = true) ||
+            val oldDebtorId = oldRide.customerId
+            val newDebtorId = updatedRide.customerId
+            val customerChanged = (oldDebtorId != null && newDebtorId != null && oldDebtorId != newDebtorId) ||
+                    (!oldRide.customerName.equals(updatedRide.customerName, ignoreCase = true)) ||
                     (oldRide.phone.isNotEmpty() && updatedRide.phone.isNotEmpty() && oldRide.phone != updatedRide.phone)
 
             if (customerChanged) {
                 if (oldRide.remainingBakaya > 0) {
-                    val oldDebtor = dao.findDebtorByNameOrPhone(oldRide.customerName, oldRide.phone)
+                    val oldDebtor = if (oldDebtorId != null) dao.getDebtorById(oldDebtorId) else dao.findDebtorByNameOrPhone(oldRide.customerName, oldRide.phone)
                     if (oldDebtor != null) {
                         val newRemaining = (oldDebtor.remainingDebt - oldRide.remainingBakaya).coerceAtLeast(0.0)
                         val newTotal = (oldDebtor.totalDebt - oldRide.remainingBakaya).coerceAtLeast(0.0)
@@ -96,13 +115,13 @@ class RiderRepository(
                     }
                 }
                 if (updatedRide.remainingBakaya > 0) {
-                    val newDebtor = dao.findDebtorByNameOrPhone(updatedRide.customerName, updatedRide.phone)
+                    val newDebtor = if (newDebtorId != null) dao.getDebtorById(newDebtorId) else dao.findDebtorByNameOrPhone(updatedRide.customerName, updatedRide.phone)
                     if (newDebtor != null) {
                         val newRemaining = newDebtor.remainingDebt + updatedRide.remainingBakaya
                         val newTotal = newDebtor.totalDebt + updatedRide.remainingBakaya
                         dao.updateDebtor(newDebtor.copy(totalDebt = newTotal, remainingDebt = newRemaining, lastUpdated = System.currentTimeMillis()))
                     } else {
-                        dao.insertDebtor(
+                        val insertedId = dao.insertDebtor(
                             DebtorEntity(
                                 name = updatedRide.customerName,
                                 phone = updatedRide.phone,
@@ -117,7 +136,7 @@ class RiderRepository(
             } else {
                 val diffBakaya = updatedRide.remainingBakaya - oldRide.remainingBakaya
                 if (diffBakaya != 0.0) {
-                    val debtor = dao.findDebtorByNameOrPhone(updatedRide.customerName, updatedRide.phone)
+                    val debtor = if (updatedRide.customerId != null) dao.getDebtorById(updatedRide.customerId) else dao.findDebtorByNameOrPhone(updatedRide.customerName, updatedRide.phone)
                     if (debtor != null) {
                         val newRemaining = (debtor.remainingDebt + diffBakaya).coerceAtLeast(0.0)
                         val newTotal = (debtor.totalDebt + diffBakaya).coerceAtLeast(0.0)
@@ -148,24 +167,26 @@ class RiderRepository(
             if (existingHistory != null) {
                 dao.updateCustomerHistory(
                     existingHistory.copy(
+                        customerId = updatedRide.customerId ?: existingHistory.customerId,
                         customerName = updatedRide.customerName,
                         phone = updatedRide.phone,
                         details = historyDetails,
                         amount = updatedRide.fare,
                         bakayaAmount = updatedRide.remainingBakaya,
-                        timestamp = existingHistory.timestamp
+                        timestamp = updatedRide.rideDate
                     )
                 )
             } else {
                 dao.insertCustomerHistory(
                     CustomerHistoryEntity(
+                        customerId = updatedRide.customerId,
                         customerName = updatedRide.customerName,
                         phone = updatedRide.phone,
                         activityType = "RIDE",
                         details = historyDetails,
                         amount = updatedRide.fare,
                         bakayaAmount = updatedRide.remainingBakaya,
-                        timestamp = preservedDate,
+                        timestamp = updatedRide.rideDate,
                         referenceId = updatedRide.id
                     )
                 )
@@ -178,7 +199,7 @@ class RiderRepository(
 
     suspend fun deleteRide(ride: RideEntity) = runInTransaction {
         if (ride.remainingBakaya > 0) {
-            val debtor = dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
+            val debtor = if (ride.customerId != null) dao.getDebtorById(ride.customerId) else dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
             if (debtor != null) {
                 val newRemaining = (debtor.remainingDebt - ride.remainingBakaya).coerceAtLeast(0.0)
                 val newTotal = (debtor.totalDebt - ride.remainingBakaya).coerceAtLeast(0.0)
@@ -193,40 +214,57 @@ class RiderRepository(
     }
 
     suspend fun addParcel(parcel: ParcelEntity): Long = runInTransaction {
-        val parcelId = dao.insertParcel(parcel)
-        val remaining = parcel.remainingBakaya
-        if (remaining > 0) {
-            val existing = dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
-            if (existing != null) {
+        val totalCharges = parcel.samanCharges + parcel.deliveryCharges
+        val remaining = (totalCharges - parcel.amountPaid).coerceAtLeast(0.0)
+        val isPaid = remaining <= 0
+
+        val debtor = if (parcel.customerId != null && parcel.customerId > 0) {
+            dao.getDebtorById(parcel.customerId)
+        } else {
+            dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
+        }
+        val resolvedCustomerId = if (debtor != null) {
+            if (remaining > 0) {
                 dao.updateDebtor(
-                    existing.copy(
-                        totalDebt = existing.totalDebt + remaining,
-                        remainingDebt = existing.remainingDebt + remaining,
+                    debtor.copy(
+                        totalDebt = debtor.totalDebt + remaining,
+                        remainingDebt = debtor.remainingDebt + remaining,
                         lastUpdated = System.currentTimeMillis()
                     )
                 )
-            } else {
-                dao.insertDebtor(
-                    DebtorEntity(
-                        name = parcel.senderName,
-                        phone = parcel.senderPhone,
-                        totalDebt = remaining,
-                        remainingDebt = remaining,
-                        lastUpdated = System.currentTimeMillis(),
-                        notes = "Auto-created from Parcel #${parcelId}"
-                    )
-                )
             }
+            debtor.id
+        } else {
+            dao.insertDebtor(
+                DebtorEntity(
+                    name = parcel.senderName.ifBlank { "Customer" },
+                    phone = parcel.senderPhone,
+                    totalDebt = remaining,
+                    remainingDebt = remaining,
+                    lastUpdated = System.currentTimeMillis(),
+                    notes = "Auto-created from Parcel"
+                )
+            )
         }
-        val historyDetails = "Parcel to ${parcel.receiverName} (${parcel.deliveryAddress}) Charges: Rs. ${parcel.deliveryCharges.toInt()}, Paid: Rs. ${parcel.amountPaid.toInt()}, Bakaya: Rs. ${parcel.remainingBakaya.toInt()}"
+
+        val effectiveParcel = parcel.copy(
+            customerId = resolvedCustomerId,
+            remainingBakaya = remaining,
+            isPaid = isPaid
+        )
+        val parcelId = dao.insertParcel(effectiveParcel)
+
+        val shopInfo = if (parcel.shopName.isNotBlank()) "Shop: ${parcel.shopName}, " else ""
+        val historyDetails = "Parcel to ${parcel.receiverName} (${shopInfo}${parcel.deliveryAddress}) | Saman: Rs. ${parcel.samanCharges.toInt()}, Delivery: Rs. ${parcel.deliveryCharges.toInt()}, Total: Rs. ${totalCharges.toInt()}, Paid: Rs. ${parcel.amountPaid.toInt()}, Bakaya: Rs. ${remaining.toInt()}"
         dao.insertCustomerHistory(
             CustomerHistoryEntity(
+                customerId = resolvedCustomerId,
                 customerName = parcel.senderName,
                 phone = parcel.senderPhone,
                 activityType = "PARCEL",
                 details = historyDetails,
-                amount = parcel.deliveryCharges,
-                bakayaAmount = parcel.remainingBakaya,
+                amount = totalCharges,
+                bakayaAmount = remaining,
                 timestamp = parcel.date,
                 referenceId = parcelId
             )
@@ -237,15 +275,22 @@ class RiderRepository(
     suspend fun updateParcel(parcel: ParcelEntity) = runInTransaction {
         val oldParcel = dao.getParcelById(parcel.id)
         if (oldParcel != null) {
-            val preservedDate = oldParcel.date
-            val updatedParcel = parcel.copy(date = preservedDate)
+            val totalCharges = parcel.samanCharges + parcel.deliveryCharges
+            val remaining = (totalCharges - parcel.amountPaid).coerceAtLeast(0.0)
+            val updatedParcel = parcel.copy(
+                remainingBakaya = remaining,
+                isPaid = remaining <= 0
+            )
 
-            val senderChanged = !oldParcel.senderName.equals(updatedParcel.senderName, ignoreCase = true) ||
+            val oldDebtorId = oldParcel.customerId
+            val newDebtorId = updatedParcel.customerId
+            val senderChanged = (oldDebtorId != null && newDebtorId != null && oldDebtorId != newDebtorId) ||
+                    (!oldParcel.senderName.equals(updatedParcel.senderName, ignoreCase = true)) ||
                     (oldParcel.senderPhone.isNotEmpty() && updatedParcel.senderPhone.isNotEmpty() && oldParcel.senderPhone != updatedParcel.senderPhone)
 
             if (senderChanged) {
                 if (oldParcel.remainingBakaya > 0) {
-                    val oldDebtor = dao.findDebtorByNameOrPhone(oldParcel.senderName, oldParcel.senderPhone)
+                    val oldDebtor = if (oldDebtorId != null) dao.getDebtorById(oldDebtorId) else dao.findDebtorByNameOrPhone(oldParcel.senderName, oldParcel.senderPhone)
                     if (oldDebtor != null) {
                         val newRemaining = (oldDebtor.remainingDebt - oldParcel.remainingBakaya).coerceAtLeast(0.0)
                         val newTotal = (oldDebtor.totalDebt - oldParcel.remainingBakaya).coerceAtLeast(0.0)
@@ -253,7 +298,7 @@ class RiderRepository(
                     }
                 }
                 if (updatedParcel.remainingBakaya > 0) {
-                    val newDebtor = dao.findDebtorByNameOrPhone(updatedParcel.senderName, updatedParcel.senderPhone)
+                    val newDebtor = if (newDebtorId != null) dao.getDebtorById(newDebtorId) else dao.findDebtorByNameOrPhone(updatedParcel.senderName, updatedParcel.senderPhone)
                     if (newDebtor != null) {
                         val newRemaining = newDebtor.remainingDebt + updatedParcel.remainingBakaya
                         val newTotal = newDebtor.totalDebt + updatedParcel.remainingBakaya
@@ -274,7 +319,7 @@ class RiderRepository(
             } else {
                 val diffBakaya = updatedParcel.remainingBakaya - oldParcel.remainingBakaya
                 if (diffBakaya != 0.0) {
-                    val debtor = dao.findDebtorByNameOrPhone(updatedParcel.senderName, updatedParcel.senderPhone)
+                    val debtor = if (updatedParcel.customerId != null) dao.getDebtorById(updatedParcel.customerId) else dao.findDebtorByNameOrPhone(updatedParcel.senderName, updatedParcel.senderPhone)
                     if (debtor != null) {
                         val newRemaining = (debtor.remainingDebt + diffBakaya).coerceAtLeast(0.0)
                         val newTotal = (debtor.totalDebt + diffBakaya).coerceAtLeast(0.0)
@@ -301,28 +346,31 @@ class RiderRepository(
             }
 
             val existingHistory = dao.getCustomerHistoryByReference(updatedParcel.id, "PARCEL")
-            val historyDetails = "Parcel to ${updatedParcel.receiverName} (${updatedParcel.deliveryAddress}) Charges: Rs. ${updatedParcel.deliveryCharges.toInt()}, Paid: Rs. ${updatedParcel.amountPaid.toInt()}, Bakaya: Rs. ${updatedParcel.remainingBakaya.toInt()}"
+            val shopInfo = if (updatedParcel.shopName.isNotBlank()) "Shop: ${updatedParcel.shopName}, " else ""
+            val historyDetails = "Parcel to ${updatedParcel.receiverName} (${shopInfo}${updatedParcel.deliveryAddress}) | Saman: Rs. ${updatedParcel.samanCharges.toInt()}, Delivery: Rs. ${updatedParcel.deliveryCharges.toInt()}, Total: Rs. ${totalCharges.toInt()}, Paid: Rs. ${updatedParcel.amountPaid.toInt()}, Bakaya: Rs. ${updatedParcel.remainingBakaya.toInt()}"
             if (existingHistory != null) {
                 dao.updateCustomerHistory(
                     existingHistory.copy(
+                        customerId = updatedParcel.customerId ?: existingHistory.customerId,
                         customerName = updatedParcel.senderName,
                         phone = updatedParcel.senderPhone,
                         details = historyDetails,
-                        amount = updatedParcel.deliveryCharges,
+                        amount = totalCharges,
                         bakayaAmount = updatedParcel.remainingBakaya,
-                        timestamp = existingHistory.timestamp
+                        timestamp = updatedParcel.date
                     )
                 )
             } else {
                 dao.insertCustomerHistory(
                     CustomerHistoryEntity(
+                        customerId = updatedParcel.customerId,
                         customerName = updatedParcel.senderName,
                         phone = updatedParcel.senderPhone,
                         activityType = "PARCEL",
                         details = historyDetails,
-                        amount = updatedParcel.deliveryCharges,
+                        amount = totalCharges,
                         bakayaAmount = updatedParcel.remainingBakaya,
-                        timestamp = preservedDate,
+                        timestamp = updatedParcel.date,
                         referenceId = updatedParcel.id
                     )
                 )
@@ -335,7 +383,7 @@ class RiderRepository(
 
     suspend fun deleteParcel(parcel: ParcelEntity) = runInTransaction {
         if (parcel.remainingBakaya > 0) {
-            val debtor = dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
+            val debtor = if (parcel.customerId != null) dao.getDebtorById(parcel.customerId) else dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
             if (debtor != null) {
                 val newRemaining = (debtor.remainingDebt - parcel.remainingBakaya).coerceAtLeast(0.0)
                 val newTotal = (debtor.totalDebt - parcel.remainingBakaya).coerceAtLeast(0.0)
@@ -367,18 +415,21 @@ class RiderRepository(
             dao.insertDebtor(debtor)
         }
 
-        dao.insertCustomerHistory(
-            CustomerHistoryEntity(
-                customerName = debtor.name,
-                phone = debtor.phone,
-                activityType = "BAKAYA",
-                details = "Khata added: Rs. ${debtor.remainingDebt.toInt()}${if (debtor.notes.isNotBlank()) " (${debtor.notes})" else ""}",
-                amount = debtor.remainingDebt,
-                bakayaAmount = debtor.remainingDebt,
-                timestamp = System.currentTimeMillis(),
-                referenceId = debtorId
+        if (debtor.remainingDebt > 0) {
+            dao.insertCustomerHistory(
+                CustomerHistoryEntity(
+                    customerId = debtorId,
+                    customerName = debtor.name,
+                    phone = debtor.phone,
+                    activityType = "BAKAYA",
+                    details = "Khata added: Rs. ${debtor.remainingDebt.toInt()}${if (debtor.notes.isNotBlank()) " (${debtor.notes})" else ""}",
+                    amount = debtor.remainingDebt,
+                    bakayaAmount = debtor.remainingDebt,
+                    timestamp = System.currentTimeMillis(),
+                    referenceId = debtorId
+                )
             )
-        )
+        }
         debtorId
     }
 
@@ -438,6 +489,7 @@ class RiderRepository(
             )
             dao.insertCustomerHistory(
                 CustomerHistoryEntity(
+                    customerId = debtor.id,
                     customerName = debtor.name,
                     phone = debtor.phone,
                     activityType = "PAYMENT",
@@ -536,6 +588,66 @@ class RiderRepository(
         dao.deletePayment(payment)
     }
 
+    suspend fun updateCustomerBakayaById(customerId: Long, newBakaya: Double) = runInTransaction {
+        val debtor = dao.getDebtorById(customerId)
+        if (debtor != null) {
+            val oldRemaining = debtor.remainingDebt
+            val delta = newBakaya - oldRemaining
+            val newTotal = (debtor.totalDebt + delta).coerceAtLeast(0.0)
+            dao.updateDebtor(
+                debtor.copy(
+                    remainingDebt = newBakaya,
+                    totalDebt = newTotal,
+                    lastUpdated = System.currentTimeMillis()
+                )
+            )
+            if (delta != 0.0) {
+                val adjustmentStr = if (delta > 0) "+${delta.toInt()}" else "${delta.toInt()}"
+                dao.insertCustomerHistory(
+                    CustomerHistoryEntity(
+                        customerId = debtor.id,
+                        customerName = debtor.name,
+                        phone = debtor.phone,
+                        activityType = "BAKAYA",
+                        details = "Bakaya updated: Rs. ${oldRemaining.toInt()} -> Rs. ${newBakaya.toInt()} (Adjustment: $adjustmentStr)",
+                        amount = newBakaya,
+                        bakayaAmount = newBakaya,
+                        timestamp = System.currentTimeMillis(),
+                        referenceId = debtor.id
+                    )
+                )
+            }
+        }
+    }
+
+    suspend fun deleteCustomerBakayaById(customerId: Long) = runInTransaction {
+        val debtor = dao.getDebtorById(customerId)
+        if (debtor != null) {
+            val clearedAmount = debtor.remainingDebt
+            val newTotal = (debtor.totalDebt - clearedAmount).coerceAtLeast(0.0)
+            dao.updateDebtor(
+                debtor.copy(
+                    totalDebt = newTotal,
+                    remainingDebt = 0.0,
+                    lastUpdated = System.currentTimeMillis()
+                )
+            )
+            dao.insertCustomerHistory(
+                CustomerHistoryEntity(
+                    customerId = debtor.id,
+                    customerName = debtor.name,
+                    phone = debtor.phone,
+                    activityType = "BAKAYA",
+                    details = "Bakaya cleared (Rs. ${clearedAmount.toInt()} cleared to Rs. 0)",
+                    amount = clearedAmount,
+                    bakayaAmount = 0.0,
+                    timestamp = System.currentTimeMillis(),
+                    referenceId = debtor.id
+                )
+            )
+        }
+    }
+
     suspend fun updateCustomerBakaya(name: String, phone: String, newBakaya: Double) = runInTransaction {
         val debtor = dao.findDebtorByNameOrPhone(name, phone)
         if (debtor != null) {
@@ -553,6 +665,7 @@ class RiderRepository(
                 val adjustmentStr = if (delta > 0) "+${delta.toInt()}" else "${delta.toInt()}"
                 dao.insertCustomerHistory(
                     CustomerHistoryEntity(
+                        customerId = debtor.id,
                         customerName = name,
                         phone = phone,
                         activityType = "BAKAYA",
@@ -577,6 +690,7 @@ class RiderRepository(
             )
             dao.insertCustomerHistory(
                 CustomerHistoryEntity(
+                    customerId = newDebtorId,
                     customerName = name,
                     phone = phone,
                     activityType = "BAKAYA",
@@ -604,6 +718,7 @@ class RiderRepository(
             )
             dao.insertCustomerHistory(
                 CustomerHistoryEntity(
+                    customerId = debtor.id,
                     customerName = name,
                     phone = phone,
                     activityType = "BAKAYA",
@@ -646,7 +761,7 @@ class RiderRepository(
                 }
             }
             "BAKAYA", "DEBT_ADDED" -> {
-                val debtor = dao.findDebtorByNameOrPhone(history.customerName, history.phone)
+                val debtor = if (history.customerId != null) dao.getDebtorById(history.customerId) else dao.findDebtorByNameOrPhone(history.customerName, history.phone)
                 if (debtor != null) {
                     val newRemaining = (debtor.remainingDebt - history.amount).coerceAtLeast(0.0)
                     val newTotal = (debtor.totalDebt - history.amount).coerceAtLeast(0.0)
@@ -658,7 +773,7 @@ class RiderRepository(
                     val ride = dao.getRideById(refId)
                     if (ride != null) {
                         if (ride.remainingBakaya > 0) {
-                            val debtor = dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
+                            val debtor = if (ride.customerId != null) dao.getDebtorById(ride.customerId) else dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
                             if (debtor != null) {
                                 val newRemaining = (debtor.remainingDebt - ride.remainingBakaya).coerceAtLeast(0.0)
                                 val newTotal = (debtor.totalDebt - ride.remainingBakaya).coerceAtLeast(0.0)
@@ -674,7 +789,7 @@ class RiderRepository(
                     val parcel = dao.getParcelById(refId)
                     if (parcel != null) {
                         if (parcel.remainingBakaya > 0) {
-                            val debtor = dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
+                            val debtor = if (parcel.customerId != null) dao.getDebtorById(parcel.customerId) else dao.findDebtorByNameOrPhone(parcel.senderName, parcel.senderPhone)
                             if (debtor != null) {
                                 val newRemaining = (debtor.remainingDebt - parcel.remainingBakaya).coerceAtLeast(0.0)
                                 val newTotal = (debtor.totalDebt - parcel.remainingBakaya).coerceAtLeast(0.0)
