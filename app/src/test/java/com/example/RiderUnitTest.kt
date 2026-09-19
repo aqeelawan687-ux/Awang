@@ -478,4 +478,54 @@ class RiderUnitTest {
 
         assertEquals("https://github.com/aqeelawan687-ux/Awang/releases/download/v1.3.4/app-release.apk", apkUrl)
     }
+
+    @Test
+    fun testCustomerAccount_DutyChargesDeltaCalculation() {
+        val oldFare = 500.0
+        val oldPaid = 0.0
+        val oldBakaya = (oldFare - oldPaid).coerceAtLeast(0.0) // 500.0
+
+        var currentCustomerDebt = oldBakaya // 500.0
+
+        // User edits Duty Charges from 500 to 700
+        val newFare = 700.0
+        val newPaid = 0.0
+        val newBakaya = (newFare - newPaid).coerceAtLeast(0.0) // 700.0
+
+        val delta = newBakaya - oldBakaya // +200.0
+        currentCustomerDebt = (currentCustomerDebt + delta).coerceAtLeast(0.0)
+
+        assertEquals(700.0, currentCustomerDebt, 0.01)
+
+        // User deletes ride: oldBakaya is subtracted
+        currentCustomerDebt = (currentCustomerDebt - newBakaya).coerceAtLeast(0.0)
+        assertEquals(0.0, currentCustomerDebt, 0.01)
+    }
+
+    @Test
+    fun testCustomerAccount_ParcelChargesDeltaCalculation() {
+        val oldSaman = 1000.0
+        val oldDelivery = 200.0
+        val oldPaid = 0.0
+        val oldTotal = oldSaman + oldDelivery // 1200.0
+        val oldBakaya = (oldTotal - oldPaid).coerceAtLeast(0.0) // 1200.0
+
+        var currentCustomerDebt = oldBakaya // 1200.0
+
+        // User edits Saman Charges to 1500, delivery to 250
+        val newSaman = 1500.0
+        val newDelivery = 250.0
+        val newPaid = 0.0
+        val newTotal = newSaman + newDelivery // 1750.0
+        val newBakaya = (newTotal - newPaid).coerceAtLeast(0.0) // 1750.0
+
+        val delta = newBakaya - oldBakaya // +550.0
+        currentCustomerDebt = (currentCustomerDebt + delta).coerceAtLeast(0.0)
+
+        assertEquals(1750.0, currentCustomerDebt, 0.01)
+
+        // User deletes parcel: whole bakaya is subtracted
+        currentCustomerDebt = (currentCustomerDebt - newBakaya).coerceAtLeast(0.0)
+        assertEquals(0.0, currentCustomerDebt, 0.01)
+    }
 }

@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.entity.CustomerHistoryEntity
+import com.example.data.entity.ParcelEntity
+import com.example.data.entity.RideEntity
 import com.example.ui.components.AddEditParcelDialog
 import com.example.ui.components.AddEditRideDialog
 import com.example.ui.components.CustomerPdfSelectionDialog
@@ -110,7 +112,9 @@ fun CustomerAccountScreen(
         notes: String,
         customerId: Long?,
         date: Long
-    ) -> Unit
+    ) -> Unit,
+    onUpdateRide: ((RideEntity) -> Unit)? = null,
+    onUpdateParcel: ((ParcelEntity) -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -157,6 +161,8 @@ fun CustomerAccountScreen(
     var showAddPaymentDialog by remember { mutableStateOf(false) }
     var showAddRideDialog by remember { mutableStateOf(false) }
     var showAddParcelDialog by remember { mutableStateOf(false) }
+    var rideToEdit by remember { mutableStateOf<RideEntity?>(null) }
+    var parcelToEdit by remember { mutableStateOf<ParcelEntity?>(null) }
     var showPdfSelectionDialog by remember { mutableStateOf(false) }
     var newBakayaStr by remember { mutableStateOf(currentBakaya.toInt().toString()) }
 
@@ -493,11 +499,53 @@ fun CustomerAccountScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    IconButton(
-                                        onClick = { onDeleteHistoryItem(item) },
-                                        modifier = Modifier.height(28.dp)
-                                    ) {
-                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = RedError, modifier = Modifier.height(16.dp))
+                                    Row {
+                                        if (item.activityType == "RIDE") {
+                                            val rideMatch = (item.referenceId?.let { refId -> customerRides.find { it.id == refId } })
+                                                ?: customerRides.find { r -> item.details.contains(r.pickupLocation) || item.amount == r.fare }
+                                            if (rideMatch != null) {
+                                                IconButton(
+                                                    onClick = {
+                                                        rideToEdit = rideMatch
+                                                        showAddRideDialog = true
+                                                    },
+                                                    modifier = Modifier.height(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = "Edit Ride",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.height(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        } else if (item.activityType == "PARCEL") {
+                                            val parcelMatch = (item.referenceId?.let { refId -> customerParcels.find { it.id == refId } })
+                                                ?: customerParcels.find { p -> item.details.contains(p.deliveryAddress) || item.amount == p.totalCharges }
+                                            if (parcelMatch != null) {
+                                                IconButton(
+                                                    onClick = {
+                                                        parcelToEdit = parcelMatch
+                                                        showAddParcelDialog = true
+                                                    },
+                                                    modifier = Modifier.height(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = "Edit Parcel",
+                                                        tint = BluePrimary,
+                                                        modifier = Modifier.height(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        IconButton(
+                                            onClick = { onDeleteHistoryItem(item) },
+                                            modifier = Modifier.height(28.dp)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = RedError, modifier = Modifier.height(16.dp))
+                                        }
                                     }
                                 }
                                 Text(text = item.details, style = MaterialTheme.typography.bodyMedium)
@@ -517,45 +565,100 @@ fun CustomerAccountScreen(
 
     if (showAddRideDialog) {
         AddEditRideDialog(
-            rideToEdit = null,
+            rideToEdit = rideToEdit,
             existingCustomers = state.allDebtors,
             preselectedCustomerId = customerId,
-            onDismiss = { showAddRideDialog = false },
+            onDismiss = {
+                showAddRideDialog = false
+                rideToEdit = null
+            },
             onConfirm = { cName, cPhone, pickup, dropoff, fare, paid, notes, cId, rideDate ->
                 val finalName = if (cName.isNotBlank() && cName != "Customer") cName else displayName
                 val finalPhone = if (cPhone.isNotBlank()) cPhone else displayPhone
-                onAddRideForCustomer(finalName, finalPhone, pickup, dropoff, fare, paid, notes, cId ?: customerId, rideDate)
+                if (rideToEdit != null) {
+                    val remaining = (fare - paid).coerceAtLeast(0.0)
+                    val paymentStatus = when {
+                        remaining <= 0 -> "PAID"
+                        paid > 0 -> "PARTIAL"
+                        else -> "UNPAID"
+                    }
+                    val updatedRide = rideToEdit!!.copy(
+                        customerId = cId ?: customerId ?: rideToEdit!!.customerId,
+                        customerName = finalName,
+                        phone = finalPhone,
+                        pickupLocation = pickup,
+                        dropoffLocation = dropoff,
+                        fare = fare,
+                        paymentStatus = paymentStatus,
+                        amountPaid = paid,
+                        remainingBakaya = remaining,
+                        rideDate = rideDate,
+                        notes = notes
+                    )
+                    onUpdateRide?.invoke(updatedRide)
+                } else {
+                    onAddRideForCustomer(finalName, finalPhone, pickup, dropoff, fare, paid, notes, cId ?: customerId, rideDate)
+                }
                 showAddRideDialog = false
+                rideToEdit = null
             }
         )
     }
 
     if (showAddParcelDialog) {
         AddEditParcelDialog(
-            parcelToEdit = null,
+            parcelToEdit = parcelToEdit,
             existingCustomers = state.allDebtors,
             preselectedCustomerId = customerId,
-            onDismiss = { showAddParcelDialog = false },
+            onDismiss = {
+                showAddParcelDialog = false
+                parcelToEdit = null
+            },
             onConfirm = { sName, sPhone, rName, rPhone, pickup, delivery, shopName, sCharges, dCharges, paid, isDelivered, notes, cId, pDate ->
                 val finalSender = if (sName.isNotBlank() && sName != "Customer") sName else displayName
                 val finalSenderPhone = if (sPhone.isNotBlank()) sPhone else displayPhone
-                onAddParcelForCustomer(
-                    finalSender,
-                    finalSenderPhone,
-                    rName,
-                    rPhone,
-                    pickup,
-                    delivery,
-                    shopName,
-                    sCharges,
-                    dCharges,
-                    paid,
-                    isDelivered,
-                    notes,
-                    cId ?: customerId,
-                    pDate
-                )
+                if (parcelToEdit != null) {
+                    val total = sCharges + dCharges
+                    val remaining = (total - paid).coerceAtLeast(0.0)
+                    val updatedParcel = parcelToEdit!!.copy(
+                        customerId = cId ?: customerId ?: parcelToEdit!!.customerId,
+                        senderName = finalSender,
+                        senderPhone = finalSenderPhone,
+                        receiverName = rName,
+                        receiverPhone = rPhone,
+                        pickupAddress = pickup,
+                        deliveryAddress = delivery,
+                        shopName = shopName,
+                        samanCharges = sCharges,
+                        deliveryCharges = dCharges,
+                        amountPaid = paid,
+                        remainingBakaya = remaining,
+                        isDelivered = isDelivered,
+                        isPaid = remaining <= 0,
+                        date = pDate,
+                        notes = notes
+                    )
+                    onUpdateParcel?.invoke(updatedParcel)
+                } else {
+                    onAddParcelForCustomer(
+                        finalSender,
+                        finalSenderPhone,
+                        rName,
+                        rPhone,
+                        pickup,
+                        delivery,
+                        shopName,
+                        sCharges,
+                        dCharges,
+                        paid,
+                        isDelivered,
+                        notes,
+                        cId ?: customerId,
+                        pDate
+                    )
+                }
                 showAddParcelDialog = false
+                parcelToEdit = null
             }
         )
     }

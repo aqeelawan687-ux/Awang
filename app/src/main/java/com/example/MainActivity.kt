@@ -216,6 +216,12 @@ class MainActivity : ComponentActivity() {
                                             samanCharges = sCharges,
                                             date = pDate
                                         )
+                                    },
+                                    onUpdateRide = { updatedRide ->
+                                        viewModel.updateRide(updatedRide)
+                                    },
+                                    onUpdateParcel = { updatedParcel ->
+                                        viewModel.updateParcel(updatedParcel)
                                     }
                                 )
                             }
