@@ -103,15 +103,13 @@ fun AddEditRideDialog(
     var pickup by remember { mutableStateOf(rideToEdit?.pickupLocation ?: "") }
     var dropoff by remember { mutableStateOf(rideToEdit?.dropoffLocation ?: "") }
     var fareStr by remember { mutableStateOf(rideToEdit?.fare?.toInt()?.toString() ?: "") }
-    var paidStr by remember { mutableStateOf(rideToEdit?.amountPaid?.toInt()?.toString() ?: "") }
     var notes by remember { mutableStateOf(rideToEdit?.notes ?: "") }
     var rideDateMillis by remember { mutableStateOf(rideToEdit?.rideDate ?: System.currentTimeMillis()) }
 
     var customerDropdownExpanded by remember { mutableStateOf(false) }
 
     val fare = fareStr.toDoubleOrNull() ?: 0.0
-    val paid = paidStr.toDoubleOrNull() ?: if (rideToEdit != null) rideToEdit.amountPaid else fare
-    val remainingBakaya = (fare - (paidStr.toDoubleOrNull() ?: 0.0)).coerceAtLeast(0.0)
+    val remainingBakaya = (fare - (rideToEdit?.amountPaid ?: 0.0)).coerceAtLeast(0.0)
 
     val calendar = Calendar.getInstance().apply { timeInMillis = rideDateMillis }
 
@@ -233,7 +231,6 @@ fun AddEditRideDialog(
                         pickup = it
                         if (fareStr.isEmpty() && pickup.isNotEmpty() && dropoff.isNotEmpty()) {
                             fareStr = DistanceCalculator.calculateFare(pickup, dropoff).toInt().toString()
-                            if (paidStr.isEmpty()) paidStr = fareStr
                         }
                     },
                     label = { Text("Pickup Location") },
@@ -247,7 +244,6 @@ fun AddEditRideDialog(
                         dropoff = it
                         if (fareStr.isEmpty() && pickup.isNotEmpty() && dropoff.isNotEmpty()) {
                             fareStr = DistanceCalculator.calculateFare(pickup, dropoff).toInt().toString()
-                            if (paidStr.isEmpty()) paidStr = fareStr
                         }
                     },
                     label = { Text("Drop-off Location") },
@@ -256,34 +252,18 @@ fun AddEditRideDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = fareStr,
-                        onValueChange = {
-                            fareStr = it
-                            if (rideToEdit == null && paidStr.isEmpty()) {
-                                paidStr = it
-                            }
-                        },
-                        label = { Text("Fare (Rs.) *") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("ride_fare_input"),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = paidStr,
-                        onValueChange = { paidStr = it },
-                        label = { Text("Paid (Rs.)") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                }
+                OutlinedTextField(
+                    value = fareStr,
+                    onValueChange = {
+                        fareStr = it
+                    },
+                    label = { Text("Duty Charges (Rs.) *") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ride_fare_input"),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
 
                 // Auto-calculated Bakaya indicator
                 Spacer(modifier = Modifier.height(6.dp))
@@ -354,7 +334,7 @@ fun AddEditRideDialog(
             Button(
                 onClick = {
                     val finalFare = fareStr.toDoubleOrNull() ?: 0.0
-                    val finalPaid = paidStr.toDoubleOrNull() ?: finalFare
+                    val finalPaid = rideToEdit?.amountPaid ?: 0.0
                     val finalName = name.ifBlank { "Customer" }
                     val finalPickup = pickup.ifBlank { "Pickup Location" }
                     val finalDropoff = dropoff.ifBlank { "Drop-off Location" }
