@@ -99,6 +99,10 @@ fun AddEditRideDialog(
         mutableStateOf(rideToEdit?.customerId ?: preselectedCustomerId)
     }
     var name by remember { mutableStateOf(rideToEdit?.customerName ?: "") }
+    // Phone Number free-text entry removed from this screen on purpose: it is replaced
+    // by the Notes / Tafseel field below. The phone value itself is still carried from
+    // a linked customer account (or preserved unchanged on edit) so nothing about the
+    // customer's existing phone number system elsewhere in the app is affected.
     var phone by remember { mutableStateOf(rideToEdit?.phone ?: "") }
     var pickup by remember { mutableStateOf(rideToEdit?.pickupLocation ?: "") }
     var dropoff by remember { mutableStateOf(rideToEdit?.dropoffLocation ?: "") }
@@ -109,7 +113,11 @@ fun AddEditRideDialog(
     var customerDropdownExpanded by remember { mutableStateOf(false) }
 
     val fare = fareStr.toDoubleOrNull() ?: 0.0
-    val remainingBakaya = (fare - (rideToEdit?.amountPaid ?: 0.0)).coerceAtLeast(0.0)
+    // Paid (Rs.) field removed on purpose: same as Saman/Parcel, any amount already
+    // recorded as paid against this ride is preserved untouched (0 for a brand-new
+    // ride), and the full Duty Charges amount flows into the Bakaya calculation.
+    val existingAmountPaid = rideToEdit?.amountPaid ?: 0.0
+    val remainingBakaya = (fare - existingAmountPaid).coerceAtLeast(0.0)
 
     val calendar = Calendar.getInstance().apply { timeInMillis = rideDateMillis }
 
@@ -217,12 +225,12 @@ fun AddEditRideDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes / Tafseel (Optional)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ride_notes_input")
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -254,9 +262,7 @@ fun AddEditRideDialog(
 
                 OutlinedTextField(
                     value = fareStr,
-                    onValueChange = {
-                        fareStr = it
-                    },
+                    onValueChange = { fareStr = it },
                     label = { Text("Duty Charges (Rs.) *") },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -321,20 +327,13 @@ fun AddEditRideDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val finalFare = fareStr.toDoubleOrNull() ?: 0.0
-                    val finalPaid = rideToEdit?.amountPaid ?: 0.0
+                    val finalPaid = existingAmountPaid
                     val finalName = name.ifBlank { "Customer" }
                     val finalPickup = pickup.ifBlank { "Pickup Location" }
                     val finalDropoff = dropoff.ifBlank { "Drop-off Location" }
@@ -402,7 +401,11 @@ fun AddEditParcelDialog(
     var delivery by remember { mutableStateOf(parcelToEdit?.deliveryAddress ?: "") }
     var samanChargesStr by remember { mutableStateOf(parcelToEdit?.samanCharges?.toInt()?.toString() ?: "") }
     var deliveryChargesStr by remember { mutableStateOf(parcelToEdit?.deliveryCharges?.toInt()?.toString() ?: "") }
-    var paidStr by remember { mutableStateOf(parcelToEdit?.amountPaid?.toInt()?.toString() ?: "") }
+    // Amount Paid removed from this screen on purpose: advance/payment against a customer
+    // is recorded once from the main Customer Account screen, not per Saman/Parcel entry.
+    // A new parcel's full charges become Bakaya; when editing, whatever was already
+    // recorded as paid on that parcel is preserved untouched.
+    val existingAmountPaid = parcelToEdit?.amountPaid ?: 0.0
     var isDelivered by remember { mutableStateOf(parcelToEdit?.isDelivered ?: false) }
     var notes by remember { mutableStateOf(parcelToEdit?.notes ?: "") }
     var parcelDateMillis by remember { mutableStateOf(parcelToEdit?.date ?: System.currentTimeMillis()) }
@@ -412,8 +415,7 @@ fun AddEditParcelDialog(
     val samanCharges = samanChargesStr.toDoubleOrNull() ?: 0.0
     val deliveryCharges = deliveryChargesStr.toDoubleOrNull() ?: 0.0
     val totalCharges = samanCharges + deliveryCharges
-    val paid = paidStr.toDoubleOrNull() ?: if (parcelToEdit != null) parcelToEdit.amountPaid else deliveryCharges
-    val remainingBakaya = (totalCharges - (paidStr.toDoubleOrNull() ?: 0.0)).coerceAtLeast(0.0)
+    val remainingBakaya = (totalCharges - existingAmountPaid).coerceAtLeast(0.0)
 
     val calendar = Calendar.getInstance().apply { timeInMillis = parcelDateMillis }
 
@@ -585,28 +587,13 @@ fun AddEditParcelDialog(
                     )
                     OutlinedTextField(
                         value = deliveryChargesStr,
-                        onValueChange = {
-                            deliveryChargesStr = it
-                            if (parcelToEdit == null && paidStr.isEmpty()) {
-                                paidStr = it
-                            }
-                        },
-                        label = { Text("Delivery (Rs.) *") },
+                        onValueChange = { deliveryChargesStr = it },
+                        label = { Text("Duty Charges (Rs.) *") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = paidStr,
-                    onValueChange = { paidStr = it },
-                    label = { Text("Amount Paid (Rs.)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
 
                 // Total and Bakaya Summary Surface
                 Spacer(modifier = Modifier.height(6.dp))
@@ -695,7 +682,7 @@ fun AddEditParcelDialog(
                     val sCharges = samanChargesStr.toDoubleOrNull() ?: 0.0
                     val dCharges = deliveryChargesStr.toDoubleOrNull() ?: 0.0
                     val total = sCharges + dCharges
-                    val finalPaid = paidStr.toDoubleOrNull() ?: dCharges
+                    val finalPaid = existingAmountPaid
                     val finalSender = senderName.ifBlank { "Customer" }
                     val finalReceiver = receiverName.ifBlank { "Receiver" }
                     val finalPickup = pickup.ifBlank { "Pickup Address" }

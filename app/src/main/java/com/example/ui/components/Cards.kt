@@ -333,7 +333,7 @@ fun ParcelCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Delivery: Rs. ${parcel.deliveryCharges.toInt()}",
+                            text = "Duty: Rs. ${parcel.deliveryCharges.toInt()}",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium
                         )
@@ -503,7 +503,11 @@ fun DebtorCard(
                     color = if (debtor.remainingDebt > 0) RedError.copy(alpha = 0.15f) else GreenPrimary.copy(alpha = 0.15f)
                 ) {
                     Text(
-                        text = if (debtor.remainingDebt > 0) "Rs. ${debtor.remainingDebt.toInt()} BAKAYA" else "CLEAR (Rs. 0)",
+                        text = when {
+                            debtor.remainingDebt > 0 -> "Rs. ${debtor.remainingDebt.toInt()} BAKAYA"
+                            debtor.remainingDebt < 0 -> "Rs. ${kotlin.math.abs(debtor.remainingDebt.toInt())} ADVANCE"
+                            else -> "CLEAR (Rs. 0)"
+                        },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,

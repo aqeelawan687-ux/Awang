@@ -3,6 +3,7 @@ package com.example
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
@@ -122,6 +123,19 @@ class MainActivity : ComponentActivity() {
 
                         var debtorForPayment by remember { mutableStateOf<DebtorEntity?>(null) }
                         var showPdfOptionsDialog by remember { mutableStateOf(false) }
+
+                        // Phone/gesture back button: navigate within the app instead of
+                        // exiting straight away. Sub-screens (Settings, Customer Account)
+                        // go back to MAIN first; a non-Dashboard tab on MAIN goes back to
+                        // Dashboard; only pressing back from the Dashboard tab exits the app
+                        // (default system behaviour, so BackHandler is simply not enabled there).
+                        BackHandler(enabled = currentScreen != "MAIN" || currentTab != "DASHBOARD") {
+                            if (currentScreen != "MAIN") {
+                                currentScreen = "MAIN"
+                            } else {
+                                currentTab = "DASHBOARD"
+                            }
+                        }
 
                         when (currentScreen) {
                             "SETTINGS" -> {

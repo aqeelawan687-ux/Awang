@@ -44,18 +44,33 @@ class RiderRepository(
         }
     }
 
+    private fun resolveRideRemaining(fare: Double, amountPaid: Double): Double =
+        (fare - amountPaid).coerceAtLeast(0.0)
+
+    private fun resolveRidePaymentStatus(remaining: Double, amountPaid: Double): String = when {
+        remaining <= 0 -> "PAID"
+        amountPaid > 0 -> "PARTIAL"
+        else -> "UNPAID"
+    }
+
     suspend fun addRide(ride: RideEntity): Long = runInTransaction {
+        // Bakaya/paymentStatus are always recomputed here from fare & amountPaid rather
+        // than trusted from the caller, so the Duty Charges amount reliably lands in the
+        // customer's Bakaya/Dashboard balance regardless of what the UI layer passed in.
+        val resolvedRemaining = resolveRideRemaining(ride.fare, ride.amountPaid)
+        val resolvedStatus = resolveRidePaymentStatus(resolvedRemaining, ride.amountPaid)
+
         val debtor = if (ride.customerId != null && ride.customerId > 0) {
             dao.getDebtorById(ride.customerId)
         } else {
             dao.findDebtorByNameOrPhone(ride.customerName, ride.phone)
         }
         val resolvedCustomerId = if (debtor != null) {
-            if (ride.remainingBakaya > 0) {
+            if (resolvedRemaining > 0) {
                 dao.updateDebtor(
                     debtor.copy(
-                        totalDebt = debtor.totalDebt + ride.remainingBakaya,
-                        remainingDebt = debtor.remainingDebt + ride.remainingBakaya,
+                        totalDebt = debtor.totalDebt + resolvedRemaining,
+                        remainingDebt = debtor.remainingDebt + resolvedRemaining,
                         lastUpdated = System.currentTimeMillis()
                     )
                 )
@@ -66,18 +81,22 @@ class RiderRepository(
                 DebtorEntity(
                     name = ride.customerName.ifBlank { "Customer" },
                     phone = ride.phone,
-                    totalDebt = ride.remainingBakaya,
-                    remainingDebt = ride.remainingBakaya,
+                    totalDebt = resolvedRemaining,
+                    remainingDebt = resolvedRemaining,
                     lastUpdated = System.currentTimeMillis(),
                     notes = "Auto-created from Ride"
                 )
             )
         }
 
-        val effectiveRide = ride.copy(customerId = resolvedCustomerId)
+        val effectiveRide = ride.copy(
+            customerId = resolvedCustomerId,
+            remainingBakaya = resolvedRemaining,
+            paymentStatus = resolvedStatus
+        )
         val rideId = dao.insertRide(effectiveRide)
 
-        val historyDetails = "Ride from ${ride.pickupLocation} to ${ride.dropoffLocation} (Fare: Rs. ${ride.fare.toInt()}, Paid: Rs. ${ride.amountPaid.toInt()}, Bakaya: Rs. ${ride.remainingBakaya.toInt()})"
+        val historyDetails = "Ride from ${ride.pickupLocation} to ${ride.dropoffLocation} (Fare: Rs. ${ride.fare.toInt()}, Paid: Rs. ${ride.amountPaid.toInt()}, Bakaya: Rs. ${resolvedRemaining.toInt()})"
         dao.insertCustomerHistory(
             CustomerHistoryEntity(
                 customerId = resolvedCustomerId,
@@ -86,7 +105,7 @@ class RiderRepository(
                 activityType = "RIDE",
                 details = historyDetails,
                 amount = ride.fare,
-                bakayaAmount = ride.remainingBakaya,
+                bakayaAmount = resolvedRemaining,
                 timestamp = ride.rideDate,
                 referenceId = rideId
             )
@@ -97,7 +116,11 @@ class RiderRepository(
     suspend fun updateRide(ride: RideEntity) = runInTransaction {
         val oldRide = dao.getRideById(ride.id)
         if (oldRide != null) {
-            val updatedRide = ride
+            // Recomputed here (not trusted from the caller) so the old Bakaya is always
+            // reversed and the new one applied correctly, matching how updateParcel works.
+            val resolvedRemaining = resolveRideRemaining(ride.fare, ride.amountPaid)
+            val resolvedStatus = resolveRidePaymentStatus(resolvedRemaining, ride.amountPaid)
+            val updatedRide = ride.copy(remainingBakaya = resolvedRemaining, paymentStatus = resolvedStatus)
 
             val oldDebtorId = oldRide.customerId
             val newDebtorId = updatedRide.customerId
@@ -480,7 +503,10 @@ class RiderRepository(
         val paymentId = dao.insertPayment(payment)
         val debtor = dao.getDebtorById(debtorId)
         if (debtor != null) {
-            val updatedRemaining = (debtor.remainingDebt - amount).coerceAtLeast(0.0)
+            // Do not floor at 0: if the customer pays more than they owed, the extra
+            // is kept as a negative balance (advance credit) instead of being lost,
+            // so it still shows correctly on the dashboard/customer account.
+            val updatedRemaining = debtor.remainingDebt - amount
             dao.updateDebtor(
                 debtor.copy(
                     remainingDebt = updatedRemaining,
@@ -534,7 +560,7 @@ class RiderRepository(
         val diff = updatedPayment.amountPaid - oldAmount
         val debtor = dao.getDebtorById(updatedPayment.debtorId)
         if (debtor != null) {
-            val newRemaining = (debtor.remainingDebt - diff).coerceAtLeast(0.0)
+            val newRemaining = debtor.remainingDebt - diff
             dao.updateDebtor(
                 debtor.copy(
                     remainingDebt = newRemaining,

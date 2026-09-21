@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
+import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +54,7 @@ class ApkUpdateManager(private val context: Context) {
      */
     suspend fun checkLatestUpdate(
         isManual: Boolean = false,
-        currentVersionCode: Int = 133
+        currentVersionCode: Int = BuildConfig.VERSION_CODE
     ) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()

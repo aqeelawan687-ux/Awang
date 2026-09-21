@@ -9,8 +9,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,13 +86,37 @@ fun AppTopBar(
                     contentDescription = "Toggle Theme"
                 )
             }
+            var menuExpanded by remember { mutableStateOf(false) }
             IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.testTag("settings_button")
+                onClick = { menuExpanded = true },
+                modifier = Modifier.testTag("more_options_button")
             ) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More Options"
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Theme: ${themeMode.name.lowercase().replaceFirstChar { it.uppercase() }}") },
+                    leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onToggleTheme()
+                    },
+                    modifier = Modifier.testTag("menu_item_theme")
+                )
+                DropdownMenuItem(
+                    text = { Text("Settings") },
+                    leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onOpenSettings()
+                    },
+                    modifier = Modifier.testTag("menu_item_settings")
                 )
             }
         },

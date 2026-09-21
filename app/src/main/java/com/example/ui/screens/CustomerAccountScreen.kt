@@ -264,13 +264,17 @@ fun CustomerAccountScreen(
                         // Outstanding Bakaya Badge
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = if (currentBakaya > 0) "BAKAYA" else "CLEARED",
+                                text = when {
+                                    currentBakaya > 0 -> "BAKAYA"
+                                    currentBakaya < 0 -> "ADVANCE"
+                                    else -> "CLEARED"
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = if (currentBakaya > 0) RedError else GreenPrimary
                             )
                             Text(
-                                text = "Rs. ${currentBakaya.toInt()}",
+                                text = "Rs. ${kotlin.math.abs(currentBakaya.toInt())}",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = if (currentBakaya > 0) RedError else GreenPrimary

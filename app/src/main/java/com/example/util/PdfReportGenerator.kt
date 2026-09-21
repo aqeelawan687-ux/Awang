@@ -69,7 +69,7 @@ object PdfReportGenerator {
         // Summary Stats
         val totalRideFare = rides.sumOf { it.fare }
         val totalRidePaid = rides.sumOf { it.amountPaid }
-        val totalParcelCharges = parcels.sumOf { it.deliveryCharges }
+        val totalParcelCharges = parcels.sumOf { it.totalCharges }
         val totalParcelPaid = parcels.sumOf { it.amountPaid }
         val totalDebtRemaining = debtors.sumOf { it.remainingDebt }
         val totalRecovered = payments.sumOf { it.amountPaid }
@@ -104,7 +104,7 @@ object PdfReportGenerator {
         for (p in parcels.take(5)) {
             val pDate = DateTimeUtils.formatDateTime(p.date)
             val status = if (p.isDelivered) "Delivered" else "Pending"
-            val line = "[$pDate] From: ${p.senderName} -> To: ${p.receiverName} (${p.deliveryAddress}) | Rs. ${p.deliveryCharges.toInt()} [$status, Paid: Rs. ${p.amountPaid.toInt()}]"
+            val line = "[$pDate] From: ${p.senderName} -> To: ${p.receiverName} (${p.deliveryAddress}) | Saman: Rs. ${p.samanCharges.toInt()} + Duty: Rs. ${p.deliveryCharges.toInt()} = Rs. ${p.totalCharges.toInt()} [$status, Paid: Rs. ${p.amountPaid.toInt()}]"
             canvas.drawText(line, 30f, y, textPaint)
             y += 15f
         }
@@ -165,6 +165,11 @@ object PdfReportGenerator {
             textSize = 14f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
+        val greenPaint = Paint().apply {
+            color = Color.rgb(0, 200, 83)
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
         val footerLinePaint = Paint().apply {
             color = Color.rgb(203, 213, 225)
         }
@@ -198,7 +203,13 @@ object PdfReportGenerator {
         canvas.drawText("Issued: ${dateFormat.format(Date())}", 30f, 78f, headerSubPaint)
 
         var y = 125f
-        canvas.drawText("Outstanding Balance (Bakaya): Rs. ${remainingDebt.toInt()}", 30f, y, redPaint)
+        val balanceLabel = when {
+            remainingDebt > 0 -> "Outstanding Balance (Bakaya): Rs. ${remainingDebt.toInt()}"
+            remainingDebt < 0 -> "Advance Balance (Credit): Rs. ${kotlin.math.abs(remainingDebt.toInt())}"
+            else -> "Outstanding Balance: Rs. 0 (Cleared)"
+        }
+        val balancePaint = if (remainingDebt > 0) redPaint else greenPaint
+        canvas.drawText(balanceLabel, 30f, y, balancePaint)
         y += 25f
 
         // Calculate Totals across ALL items (marked + unmarked)
