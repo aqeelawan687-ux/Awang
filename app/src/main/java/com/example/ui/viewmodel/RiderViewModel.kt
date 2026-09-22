@@ -10,7 +10,10 @@ import com.example.data.entity.ParcelEntity
 import com.example.data.entity.PaymentHistoryEntity
 import com.example.data.entity.RideEntity
 import com.example.data.repository.RiderRepository
+import com.example.ui.theme.AppColorTheme
 import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.AppWallpaper
+import com.example.util.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +34,8 @@ data class RiderUiState(
     val rideFilter: String = "ALL", // ALL, TODAY, UNPAID
     val parcelFilter: String = "ALL", // ALL, PENDING, DELIVERED
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val colorTheme: AppColorTheme = AppColorTheme.CLASSIC_GREEN,
+    val wallpaper: AppWallpaper = AppWallpaper.NONE,
     val selectedCustomerId: Long? = null,
     val selectedCustomerName: String? = null,
     val selectedCustomerPhone: String? = null
@@ -63,7 +68,9 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
     private val searchQueryFlow = MutableStateFlow("")
     private val rideFilterFlow = MutableStateFlow("ALL")
     private val parcelFilterFlow = MutableStateFlow("ALL")
-    private val themeModeFlow = MutableStateFlow(AppThemeMode.SYSTEM)
+    private val themeModeFlow = MutableStateFlow(AppPreferences.getThemeMode(application))
+    private val colorThemeFlow = MutableStateFlow(AppPreferences.getColorTheme(application))
+    private val wallpaperFlow = MutableStateFlow(AppPreferences.getWallpaper(application))
     private val selectedCustomerFlow = MutableStateFlow(CustomerSelection())
 
     init {
@@ -98,12 +105,19 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
         SearchPrefs(query, rideF, parcelF)
     }
 
-    private data class UiPrefs(val theme: AppThemeMode, val customer: CustomerSelection)
+    private data class UiPrefs(
+        val theme: AppThemeMode,
+        val colorTheme: AppColorTheme,
+        val wallpaper: AppWallpaper,
+        val customer: CustomerSelection
+    )
     private val uiPrefsFlow = combine(
         themeModeFlow,
+        colorThemeFlow,
+        wallpaperFlow,
         selectedCustomerFlow
-    ) { theme, customer ->
-        UiPrefs(theme, customer)
+    ) { theme, colorTheme, wallpaper, customer ->
+        UiPrefs(theme, colorTheme, wallpaper, customer)
     }
 
     val uiState: StateFlow<RiderUiState> = combine(
@@ -161,6 +175,8 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
             rideFilter = search.rideFilter,
             parcelFilter = search.parcelFilter,
             themeMode = ui.theme,
+            colorTheme = ui.colorTheme,
+            wallpaper = ui.wallpaper,
             selectedCustomerId = ui.customer.id,
             selectedCustomerName = ui.customer.name,
             selectedCustomerPhone = ui.customer.phone
@@ -185,6 +201,17 @@ class RiderViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setThemeMode(mode: AppThemeMode) {
         themeModeFlow.value = mode
+        AppPreferences.setThemeMode(getApplication(), mode)
+    }
+
+    fun setColorTheme(theme: AppColorTheme) {
+        colorThemeFlow.value = theme
+        AppPreferences.setColorTheme(getApplication(), theme)
+    }
+
+    fun setWallpaper(wallpaper: AppWallpaper) {
+        wallpaperFlow.value = wallpaper
+        AppPreferences.setWallpaper(getApplication(), wallpaper)
     }
 
     fun selectCustomer(name: String?, phone: String?) {

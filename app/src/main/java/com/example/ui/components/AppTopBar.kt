@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,8 @@ fun AppTopBar(
     themeMode: AppThemeMode,
     onToggleTheme: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenThemeFolder: () -> Unit = {},
+    onOpenWallpaperFolder: () -> Unit = {},
     onToggleSearch: (() -> Unit)? = null
 ) {
     TopAppBar(
@@ -96,18 +99,30 @@ fun AppTopBar(
                     contentDescription = "More Options"
                 )
             }
+            // Each function lives in its own "folder" here: Theme, Wallpaper,
+            // and Settings are separate destinations instead of being mixed
+            // into one flat list.
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Theme: ${themeMode.name.lowercase().replaceFirstChar { it.uppercase() }}") },
+                    text = { Text("Theme") },
                     leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null) },
                     onClick = {
                         menuExpanded = false
-                        onToggleTheme()
+                        onOpenThemeFolder()
                     },
                     modifier = Modifier.testTag("menu_item_theme")
+                )
+                DropdownMenuItem(
+                    text = { Text("Wallpaper") },
+                    leadingIcon = { Icon(Icons.Default.Wallpaper, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onOpenWallpaperFolder()
+                    },
+                    modifier = Modifier.testTag("menu_item_wallpaper")
                 )
                 DropdownMenuItem(
                     text = { Text("Settings") },

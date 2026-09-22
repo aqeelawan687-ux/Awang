@@ -218,14 +218,18 @@ object PdfReportGenerator {
         val totalParcelsCharges = parcels.sumOf { it.totalCharges }
         val totalParcelsBakaya = parcels.sumOf { it.remainingBakaya }
 
-        // Filter history rows for display based on markedItemIds
+        // Filter history rows for display based on markedItemIds.
+        // Individual Payment/Vasooli entries are intentionally left out of the
+        // printed statement (the running balance above already reflects them);
+        // everything else keeps the same layout/formula as before.
+        val baseHistory = history.filter { it.activityType != "PAYMENT" }
         val displayHistory = if (markedItemIds != null) {
-            history.filter { markedItemIds.contains(it.id) }
+            baseHistory.filter { markedItemIds.contains(it.id) }
         } else {
-            history
+            baseHistory
         }
 
-        val unmarkedCount = history.size - displayHistory.size
+        val unmarkedCount = baseHistory.size - displayHistory.size
         val summaryNote = if (unmarkedCount > 0) {
             "Showing ${displayHistory.size} marked transactions (${unmarkedCount} details omitted; totals include all transactions):"
         } else {

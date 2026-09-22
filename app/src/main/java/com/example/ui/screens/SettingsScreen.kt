@@ -179,65 +179,13 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Theme Selector
-            Text(text = "Appearance & Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onThemeChange(AppThemeMode.SYSTEM) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(imageVector = Icons.Default.SettingsSystemDaydream, contentDescription = null)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = "System Default", modifier = Modifier.weight(1f))
-                        if (currentTheme == AppThemeMode.SYSTEM) {
-                            Text(text = "✓", color = GreenPrimary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onThemeChange(AppThemeMode.LIGHT) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(imageVector = Icons.Default.LightMode, contentDescription = null)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = "Light Mode", modifier = Modifier.weight(1f))
-                        if (currentTheme == AppThemeMode.LIGHT) {
-                            Text(text = "✓", color = GreenPrimary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onThemeChange(AppThemeMode.DARK) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(imageVector = Icons.Default.DarkMode, contentDescription = null)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = "Dark Mode", modifier = Modifier.weight(1f))
-                        if (currentTheme == AppThemeMode.DARK) {
-                            Text(text = "✓", color = GreenPrimary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
+            Text(
+                text = "Tip: Theme and Wallpaper have moved to their own folders in the ⋮ menu on the top bar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
-
 
             // Danger Zone
             Text(text = "Data Management", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RedError)

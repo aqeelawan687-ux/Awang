@@ -709,7 +709,11 @@ fun CustomerAccountScreen(
     }
 
     if (showPdfSelectionDialog) {
-        val otherHistory = historyItems.filter { it.activityType != "RIDE" && it.activityType != "PARCEL" }
+        // Individual Payment/Vasooli entries are excluded here since they no
+        // longer appear as separate rows in the generated PDF statement.
+        val otherHistory = historyItems.filter {
+            it.activityType != "RIDE" && it.activityType != "PARCEL" && it.activityType != "PAYMENT"
+        }
         CustomerPdfSelectionDialog(
             customerName = displayName,
             customerRides = customerRides,

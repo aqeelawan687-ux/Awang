@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -43,6 +44,8 @@ import com.example.ui.components.AppTopBar
 import com.example.ui.components.AppUpdateDialog
 import com.example.ui.components.PdfOptionsDialog
 import com.example.ui.components.RecordPaymentDialog
+import com.example.ui.components.ThemePickerDialog
+import com.example.ui.components.WallpaperPickerDialog
 import com.example.ui.screens.CustomerAccountScreen
 import com.example.ui.screens.CustomerHistoryScreen
 import com.example.ui.screens.DashboardScreen
@@ -55,6 +58,7 @@ import com.example.ui.screens.RidesScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.AqeelRiderTheme
+import com.example.ui.theme.brush
 import com.example.ui.viewmodel.RiderViewModel
 import com.example.util.ApkUpdateManager
 import com.example.util.LicenseManager
@@ -87,7 +91,7 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val context = LocalContext.current
 
-            AqeelRiderTheme(themeMode = uiState.themeMode) {
+            AqeelRiderTheme(themeMode = uiState.themeMode, colorTheme = uiState.colorTheme) {
                 // Check License Gate
                 when (licenseState) {
                     is LicenseState.Blocked -> {
@@ -123,6 +127,8 @@ class MainActivity : ComponentActivity() {
 
                         var debtorForPayment by remember { mutableStateOf<DebtorEntity?>(null) }
                         var showPdfOptionsDialog by remember { mutableStateOf(false) }
+                        var showThemeFolder by remember { mutableStateOf(false) }
+                        var showWallpaperFolder by remember { mutableStateOf(false) }
 
                         // Phone/gesture back button: navigate within the app instead of
                         // exiting straight away. Sub-screens (Settings, Customer Account)
@@ -262,7 +268,9 @@ class MainActivity : ComponentActivity() {
                                                 }
                                                 viewModel.setThemeMode(nextMode)
                                             },
-                                            onOpenSettings = { currentScreen = "SETTINGS" }
+                                            onOpenSettings = { currentScreen = "SETTINGS" },
+                                            onOpenThemeFolder = { showThemeFolder = true },
+                                            onOpenWallpaperFolder = { showWallpaperFolder = true }
                                         )
                                     },
                                     bottomBar = {
@@ -316,6 +324,14 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(innerPadding)
+                                            .let { base ->
+                                                val wallpaperBrush = uiState.wallpaper.brush()
+                                                if (currentTab == "DASHBOARD" && wallpaperBrush != null) {
+                                                    base.background(brush = wallpaperBrush)
+                                                } else {
+                                                    base
+                                                }
+                                            }
                                     ) {
                                         when (currentTab) {
                                             "DASHBOARD" -> DashboardScreen(
@@ -616,6 +632,24 @@ class MainActivity : ComponentActivity() {
                                     showPdfOptionsDialog = false
                                     ShareUtil.sharePdf(context, file)
                                 }
+                            )
+                        }
+
+                        if (showThemeFolder) {
+                            ThemePickerDialog(
+                                currentThemeMode = uiState.themeMode,
+                                currentColorTheme = uiState.colorTheme,
+                                onThemeModeChange = { viewModel.setThemeMode(it) },
+                                onColorThemeChange = { viewModel.setColorTheme(it) },
+                                onDismiss = { showThemeFolder = false }
+                            )
+                        }
+
+                        if (showWallpaperFolder) {
+                            WallpaperPickerDialog(
+                                currentWallpaper = uiState.wallpaper,
+                                onWallpaperChange = { viewModel.setWallpaper(it) },
+                                onDismiss = { showWallpaperFolder = false }
                             )
                         }
 
