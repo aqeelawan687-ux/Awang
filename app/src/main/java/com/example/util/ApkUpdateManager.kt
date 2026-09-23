@@ -106,10 +106,23 @@ class ApkUpdateManager(private val context: Context) {
                         remoteCode = codeMatch.groupValues[1].toIntOrNull() ?: 0
                     }
 
-                    // Fallback to deriving code from semantic version if not found in body (e.g. 1.3.4 -> 134)
+                    // Fallback if the release body doesn't carry an explicit
+                    // versionCode line: derive a comparable code from the
+                    // semantic version itself (major.minor.patch -> padded
+                    // major*10000 + minor*100 + patch) instead of naively
+                    // concatenating digits, which silently breaks version
+                    // comparisons the moment any segment reaches two digits
+                    // (e.g. "1.3.10" candidate would wrongly look smaller
+                    // than "1.4.0" as "1310" vs "140" under plain concat, but
+                    // compares correctly as 10310 vs 10400 here).
                     if (remoteCode == 0) {
-                        val digits = remoteVersionName.filter { it.isDigit() }
-                        remoteCode = digits.toIntOrNull() ?: 0
+                        val parts = remoteVersionName.split(".").mapNotNull { it.trim().toIntOrNull() }
+                        remoteCode = when {
+                            parts.size >= 3 -> parts[0] * 10000 + parts[1] * 100 + parts[2]
+                            parts.size == 2 -> parts[0] * 10000 + parts[1] * 100
+                            parts.size == 1 -> parts[0] * 10000
+                            else -> 0
+                        }
                     }
 
                     // Dynamically extract APK download URL from assets strictly matching app-release.apk
@@ -143,7 +156,11 @@ class ApkUpdateManager(private val context: Context) {
                         _updateState.value = if (isManual) UpdateState.UpToDate else UpdateState.Idle
                     }
                 } else {
-                    val errMsg = "GitHub API request failed (HTTP $responseCode)"
+                    val errMsg = when (responseCode) {
+                        403 -> "GitHub API rate limit reached. Please try again in a few minutes."
+                        404 -> "No releases found for this repository yet."
+                        else -> "GitHub API request failed (HTTP $responseCode)"
+                    }
                     _updateState.value = if (isManual) UpdateState.Error(errMsg) else UpdateState.Idle
                 }
             } catch (e: Exception) {

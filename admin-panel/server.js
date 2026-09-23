@@ -283,6 +283,30 @@ function handleResetDevice(req, res) {
 app.post('/api/license/reset-device', handleResetDevice);
 app.post('/api/admin/licenses/:id/reset-device', handleResetDevice);
 
+/**
+ * DELETE /api/admin/licenses/:id
+ * Root cause of "delete doesn't work": this route never existed before,
+ * so the dashboard had nothing to call. Logs the deletion first with a
+ * NULL license_id (license_logs has ON DELETE CASCADE on license_id, so a
+ * log row tied to the license would vanish the instant the license row is
+ * deleted — using NULL keeps the audit trail entry alive after deletion).
+ */
+function handleDelete(req, res) {
+  const keyOrId = req.params.id || req.body.licenseKey || req.body.id;
+  if (!keyOrId) return res.status(400).json({ success: false, message: 'License ID or key is required' });
+
+  const license = db.prepare('SELECT * FROM licenses WHERE id = ? OR license_key = ?').get(keyOrId, keyOrId);
+  if (!license) return res.status(404).json({ success: false, message: 'License not found' });
+
+  logAction(null, license.license_key, 'DELETE', license.device_id, req.ip, `License permanently deleted by admin (was ${license.status})`);
+  db.prepare('DELETE FROM licenses WHERE id = ?').run(license.id);
+
+  res.json({ success: true, message: `License ${license.license_key} has been permanently deleted.` });
+}
+
+app.delete('/api/admin/licenses/:id', handleDelete);
+app.post('/api/admin/licenses/:id/delete', handleDelete);
+
 // ==========================================
 // 3. ADMIN PANEL API (Auth, Stats, Lists)
 // ==========================================
@@ -309,12 +333,14 @@ app.get('/api/admin/stats', (req, res) => {
   const active = db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'ACTIVE'").get().count;
   const blocked = db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'BLOCKED'").get().count;
   const unactivated = db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'UNACTIVATED'").get().count;
+  const lifetime = db.prepare('SELECT COUNT(*) as count FROM licenses WHERE is_lifetime = 1').get().count;
 
   res.json({
     total,
     active,
     blocked,
-    unactivated
+    unactivated,
+    lifetime
   });
 });
 

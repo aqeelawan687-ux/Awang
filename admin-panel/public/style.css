@@ -401,6 +401,8 @@ body {
 .btn-action-block { background: var(--danger-bg); color: var(--danger); }
 .btn-action-unblock { background: var(--success-bg); color: var(--success); }
 .btn-action-reset { background: var(--warning-bg); color: var(--warning); }
+.btn-action-delete { background: #7f1d1d; color: #fecaca; }
+.btn-action-delete:hover { background: #991b1b; }
 
 .action-btns {
   display: flex;

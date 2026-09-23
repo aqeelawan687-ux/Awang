@@ -162,6 +162,7 @@ async function loadStats() {
       document.getElementById('stat-active').textContent = data.active || 0;
       document.getElementById('stat-unactivated').textContent = data.unactivated || 0;
       document.getElementById('stat-blocked').textContent = data.blocked || 0;
+      document.getElementById('stat-lifetime').textContent = data.lifetime || 0;
     }
   } catch (err) {
     console.error('Stats error:', err);
@@ -232,6 +233,7 @@ function renderLicensesTable(licenses) {
               ? `<button class="btn btn-sm btn-action-reset" onclick="resetDevice(${lic.id})" title="Clear device binding">Reset Device</button>`
               : ''
             }
+            <button class="btn btn-sm btn-action-delete" onclick="deleteLicense(${lic.id}, '${lic.license_key}')" title="Permanently delete this license">🗑️ Delete</button>
           </div>
         </td>
       </tr>
@@ -331,6 +333,27 @@ window.resetDevice = async function(id) {
       loadLogs();
     } else {
       showToast(data.message || 'Reset failed', true);
+    }
+  } catch (err) {
+    showToast('Error: ' + err.message, true);
+  }
+};
+
+window.deleteLicense = async function(id, licenseKey) {
+  if (!confirm(`Permanently DELETE license ${licenseKey}? This cannot be undone — the license and its device binding will be removed completely.`)) return;
+  try {
+    const res = await fetch(`/api/admin/licenses/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message);
+      loadStats();
+      loadLicenses();
+      loadLogs();
+    } else {
+      showToast(data.message || 'Delete failed', true);
     }
   } catch (err) {
     showToast('Error: ' + err.message, true);

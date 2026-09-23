@@ -50,8 +50,8 @@ fun LicenseActivationScreen(
     onActivated: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var licenseKey by remember { mutableStateOf("AR-2026-LIVE") }
-    var customerName by remember { mutableStateOf("Aqeel Rider") }
+    var licenseKey by remember { mutableStateOf("") }
+    var customerName by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 

@@ -25,6 +25,7 @@ import com.example.util.UpdateState
 @Composable
 fun AppUpdateDialog(
     updateState: UpdateState,
+    currentVersionName: String = com.example.BuildConfig.VERSION_NAME,
     onStartDownload: (String) -> Unit,
     onInstall: (java.io.File) -> Unit,
     onDismiss: () -> Unit
@@ -125,7 +126,7 @@ fun AppUpdateDialog(
                 },
                 title = { Text(text = "App Up to Date", fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(text = "You are already using the latest version of Aqeel Rider (v1.3.3). No updates needed.")
+                    Text(text = "You are already using the latest version of Aqeel Rider (v$currentVersionName). No updates needed.")
                 },
                 confirmButton = {
                     Button(onClick = onDismiss) {

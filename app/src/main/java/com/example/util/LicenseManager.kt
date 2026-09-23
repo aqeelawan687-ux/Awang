@@ -110,8 +110,12 @@ class LicenseManager(private val context: Context) {
             val url = URL(endpoint)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
-            conn.connectTimeout = 6000
-            conn.readTimeout = 6000
+            // Cold-start hosting (e.g. free-tier Railway) can take several
+            // seconds to wake up on the first request; a too-short timeout
+            // here was throwing before the server even answered, so a
+            // perfectly valid key on a real phone could look like a failure.
+            conn.connectTimeout = 20000
+            conn.readTimeout = 20000
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
 
@@ -124,7 +128,8 @@ class LicenseManager(private val context: Context) {
 
             conn.outputStream.use { it.write(jsonBody.toString().toByteArray()) }
 
-            if (conn.responseCode == 200) {
+            val responseCode = conn.responseCode
+            if (responseCode == 200) {
                 val resp = conn.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(resp)
                 val status = json.optString("status", "ACTIVE")
@@ -143,16 +148,29 @@ class LicenseManager(private val context: Context) {
                 saveLicense(formattedKey, "ACTIVE", customerName)
                 _licenseState.value = LicenseState.Active(licenseData)
                 return@withContext Result.success(licenseData)
-            } else if (conn.responseCode == 403 || conn.responseCode == 401) {
+            } else {
+                // Any non-200 response (404 not found, 403 blocked/device-limit,
+                // 401, 500, etc.) is surfaced with the server's real message
+                // instead of being silently swallowed into a generic error.
                 val errorText = try {
-                    conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "License error"
-                } catch (_: Exception) { "Invalid or blocked license" }
+                    conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                } catch (_: Exception) { "" }
                 val errJson = try { JSONObject(errorText) } catch (_: Exception) { JSONObject() }
-                val msg = errJson.optString("message", "License is invalid or device limit reached.")
+                val msg = errJson.optString(
+                    "message",
+                    when (responseCode) {
+                        404 -> "License key not found. Double-check the key exactly as generated in the Admin Dashboard."
+                        403, 401 -> "License is invalid, blocked, or device limit reached."
+                        in 500..599 -> "License server error (HTTP $responseCode). Please try again in a moment."
+                        else -> "Activation failed (HTTP $responseCode)."
+                    }
+                )
                 return@withContext Result.failure(Exception(msg))
             }
-        } catch (_: Exception) {
-            // Local fallback activation if server is unreachable or offline test
+        } catch (e: Exception) {
+            // Local fallback activation only when the server is genuinely
+            // unreachable (no internet / DNS / timeout) — never masks a real
+            // server-side rejection, since that path already returns above.
             if (formattedKey.startsWith("AR-")) {
                 val licenseData = LicenseData(
                     code = formattedKey,
@@ -165,9 +183,8 @@ class LicenseManager(private val context: Context) {
                 _licenseState.value = LicenseState.Active(licenseData)
                 return@withContext Result.success(licenseData)
             }
+            return@withContext Result.failure(Exception("Could not reach license server: ${e.message ?: "connection failed"}. Check your internet connection and try again."))
         }
-
-        return@withContext Result.failure(Exception("Failed to activate license"))
     }
 
     suspend fun verifyLicense(serverUrl: String = getServerUrl()): LicenseState = withContext(Dispatchers.IO) {
@@ -182,8 +199,8 @@ class LicenseManager(private val context: Context) {
             val endpoint = "$serverUrl/api/license/verify?code=$code&deviceId=$deviceId"
             val url = URL(endpoint)
             val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = 4000
-            conn.readTimeout = 4000
+            conn.connectTimeout = 15000
+            conn.readTimeout = 15000
             conn.requestMethod = "GET"
 
             if (conn.responseCode == 200) {
@@ -207,8 +224,28 @@ class LicenseManager(private val context: Context) {
                     return@withContext _licenseState.value
                 }
             } else if (conn.responseCode == 403) {
+                // Read the real reason instead of assuming BLOCKED: the server
+                // returns 403 both for a truly BLOCKED license and for a
+                // DEVICE_MISMATCH (this exact device querying with a stale/
+                // reassigned key) — those need different handling so a
+                // mismatch doesn't wrongly brand a legitimate license as
+                // administrator-blocked.
+                val errorText = try {
+                    conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                } catch (_: Exception) { "" }
+                val errJson = try { JSONObject(errorText) } catch (_: Exception) { JSONObject() }
+                val remoteStatus = errJson.optString("status", "BLOCKED")
+                if (remoteStatus == "BLOCKED") {
+                    saveLicense(code, "BLOCKED", prefs.getString(KEY_CUSTOMER_NAME, "") ?: "")
+                    _licenseState.value = LicenseState.Blocked()
+                }
+                // DEVICE_MISMATCH or anything else: keep the existing local
+                // state (offline grace) rather than incorrectly blocking.
+                return@withContext _licenseState.value
+            } else if (conn.responseCode == 404) {
+                // License no longer exists server-side (e.g. deleted by admin).
                 saveLicense(code, "BLOCKED", prefs.getString(KEY_CUSTOMER_NAME, "") ?: "")
-                _licenseState.value = LicenseState.Blocked()
+                _licenseState.value = LicenseState.Blocked("This license no longer exists. Please contact support.")
                 return@withContext _licenseState.value
             }
         } catch (_: Exception) {
