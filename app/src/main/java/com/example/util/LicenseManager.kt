@@ -243,10 +243,20 @@ class LicenseManager(private val context: Context) {
                 // state (offline grace) rather than incorrectly blocking.
                 return@withContext _licenseState.value
             } else if (conn.responseCode == 404) {
-                // License no longer exists server-side (e.g. deleted by admin).
-                saveLicense(code, "BLOCKED", prefs.getString(KEY_CUSTOMER_NAME, "") ?: "")
-                _licenseState.value = LicenseState.Blocked("This license no longer exists. Please contact support.")
-                return@withContext _licenseState.value
+                // Server says this license key doesn't exist right now. On a
+                // hosting setup without a persistent database volume, a
+                // redeploy/restart can reset the license store, so a 404 here
+                // does NOT reliably mean "admin deleted this license" — it can
+                // just as easily mean the server's data was momentarily
+                // unavailable/reset. Treating it as a confirmed block was the
+                // exact bug behind "Temporary Block on every startup": once
+                // saved as BLOCKED it became permanent even though the
+                // license was genuinely valid and active moments before.
+                // Per the required behavior, only an explicit BLOCKED status
+                // for a license the server actually recognizes should ever
+                // move this device into the Blocked state — a 404 keeps the
+                // last known-good local state instead, exactly like the
+                // offline/unreachable case below.
             }
         } catch (_: Exception) {
             // Offline Grace: maintain active state
